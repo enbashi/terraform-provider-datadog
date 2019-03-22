@@ -231,14 +231,14 @@ func buildDashboard(d *schema.ResourceData) (*datadog.Board, error) {
 		return nil, fmt.Errorf("Failed to parse widgets: %s", err.Error())
 	}
 	dashboard := datadog.Board{
-		// Id:                datadog.String(d.Id()),
+		Id:                datadog.String(d.Id()),
 		Title:             datadog.String(d.Get("title").(string)),
 		Widgets:           *widgets,
 		LayoutType:        layoutType,
 		Description:       datadog.String(d.Get("description").(string)),
 		IsReadOnly:        datadog.Bool(d.Get("is_read_only").(bool)),
 		TemplateVariables: *buildTemplateVariables(&terraformTemplateVariables),
-		// AuthorHandle:      datadog.String(d.Get("author_handle").(string)),
+		AuthorHandle:      datadog.String(d.Get("author_handle").(string)),
 	}
 
 	return &dashboard, nil
