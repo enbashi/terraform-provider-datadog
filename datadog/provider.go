@@ -4,11 +4,11 @@ import (
 	"errors"
 	"log"
 
+	datadog "github.com/MLaureB/go-datadog-api"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/terraform/helper/logging"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/hashicorp/terraform/terraform"
-	datadog "github.com/zorkian/go-datadog-api"
 )
 
 func Provider() terraform.ResourceProvider {
@@ -37,6 +37,7 @@ func Provider() terraform.ResourceProvider {
 			"datadog_monitor":               resourceDatadogMonitor(),
 			"datadog_timeboard":             resourceDatadogTimeboard(),
 			"datadog_screenboard":           resourceDatadogScreenboard(),
+			"datadog_dashboard":             resourceDatadogDashboard(),
 			"datadog_user":                  resourceDatadogUser(),
 			"datadog_integration_gcp":       resourceDatadogIntegrationGcp(),
 			"datadog_integration_aws":       resourceDatadogIntegrationAws(),
