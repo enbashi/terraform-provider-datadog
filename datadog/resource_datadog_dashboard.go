@@ -344,11 +344,8 @@ func resourceDatadogDashboardRead(d *schema.ResourceData, meta interface{}) erro
 }
 
 func resourceDatadogDashboardDelete(d *schema.ResourceData, meta interface{}) error {
-	id, err := strconv.Atoi(d.Id())
-	if err != nil {
-		return err
-	}
-	if err = meta.(*datadog.Client).DeleteDashboard(id); err != nil {
+	id := d.Id()
+	if err := meta.(*datadog.Client).DeleteBoard(id); err != nil {
 		return err
 	}
 	return nil
