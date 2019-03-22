@@ -287,7 +287,28 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) map[string]interfac
 	switch datadogWidget.Definition.(type) {
 	case datadog.NoteDefinition:
 		definition := datadogWidget.Definition.(datadog.NoteDefinition)
+		// Required params
 		ddefinitionMap["type"] = *definition.Type
+		ddefinitionMap["contente"] = *definition.Content
+		// Optional params
+		if definition.BackgroundColor != nil {
+			ddefinitionMap["background_color"] = *definition.BackgroundColor
+		}
+		if definition.FontSize != nil {
+			ddefinitionMap["font_size"] = *definition.FontSize
+		}
+		if definition.TextAlign != nil {
+			ddefinitionMap["text_align"] = *definition.TextAlign
+		}
+		if definition.ShowTick != nil {
+			ddefinitionMap["show_tick"] = strconv.FormatBool(*definition.ShowTick)
+		}
+		if definition.TickPos != nil {
+			ddefinitionMap["tick_pos"] = *definition.TickPos
+		}
+		if definition.TickEdge != nil {
+			ddefinitionMap["tick_edge"] = *definition.TickEdge
+		}
 	default:
 		// return "", errors.New("unsupported id type")
 	}
