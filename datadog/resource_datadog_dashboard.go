@@ -162,6 +162,28 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 		datadogWidgets[i] = datadog.BoardWidget{}
 		d := &datadogWidgets[i]
 
+		if v, ok := widgetMap["id"]; ok {
+			d.Id = datadog.Int(v.(int))
+		}
+
+		if layoutType == "free" {
+			layoutMap := widgetMap["layout"].(map[string]interface{})
+			layout := &datadog.WidgetLayout{}
+			if v, err := strconv.ParseFloat(layoutMap["x"].(string), 64); err == nil {
+				layout.X = &v
+			}
+			if v, err := strconv.ParseFloat(layoutMap["y"].(string), 64); err == nil {
+				layout.Y = &v
+			}
+			if v, err := strconv.ParseFloat(layoutMap["height"].(string), 64); err == nil {
+				layout.Height = &v
+			}
+			if v, err := strconv.ParseFloat(layoutMap["width"].(string), 64); err == nil {
+				layout.Width = &v
+			}
+			d.Layout = layout
+		}
+
 		switch *widgetType {
 		case "note":
 			definition := &datadog.NoteDefinition{}
@@ -198,26 +220,6 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 
 		}
 
-		if layoutType == "free" {
-			layoutMap := widgetMap["layout"].(map[string]interface{})
-			layout := &datadog.WidgetLayout{}
-			if v, err := strconv.ParseFloat(layoutMap["x"].(string), 64); err == nil {
-				layout.X = Float64(v)
-			}
-			if v, err := strconv.ParseFloat(layoutMap["y"].(string), 64); err == nil {
-				layout.Y = Float64(v)
-			}
-			if v, err := strconv.ParseFloat(layoutMap["height"].(string), 64); err == nil {
-				layout.Height = Float64(v)
-			}
-			if v, err := strconv.ParseFloat(layoutMap["width"].(string), 64); err == nil {
-				layout.Width = Float64(v)
-			}
-
-			d.Layout = layout
-
-		}
-
 	}
 	return &datadogWidgets, nil
 }
@@ -225,22 +227,34 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 func buildDashboard(d *schema.ResourceData) (*datadog.Board, error) {
 	layoutType := datadog.String(d.Get("layout_type").(string))
 	terraformWidgets := d.Get("widget").([]interface{})
-	terraformTemplateVariables := d.Get("template_variable").([]interface{})
 	widgets, err := buildDashboardWidgets(&terraformWidgets, *layoutType)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to parse widgets: %s", err.Error())
 	}
 	dashboard := datadog.Board{
-		Id:                datadog.String(d.Id()),
-		Title:             datadog.String(d.Get("title").(string)),
-		Widgets:           *widgets,
-		LayoutType:        layoutType,
-		Description:       datadog.String(d.Get("description").(string)),
-		IsReadOnly:        datadog.Bool(d.Get("is_read_only").(bool)),
-		TemplateVariables: *buildTemplateVariables(&terraformTemplateVariables),
-		AuthorHandle:      datadog.String(d.Get("author_handle").(string)),
+		Id:         datadog.String(d.Id()),
+		Title:      datadog.String(d.Get("title").(string)),
+		Widgets:    *widgets,
+		LayoutType: layoutType,
 	}
 
+	if v, ok := d.GetOk("description"); ok {
+		dashboard.Description = datadog.String(v.(string))
+	}
+	if v, ok := d.GetOk("is_read_only"); ok {
+		dashboard.IsReadOnly = datadog.Bool(v.(bool))
+	}
+	if v, ok := d.GetOk("notify_list"); ok {
+		notifyList := []string{}
+		for _, s := range v.([]interface{}) {
+			notifyList = append(notifyList, s.(string))
+		}
+		dashboard.NotifyList = notifyList
+	}
+	if v, ok := d.GetOk("template_variable"); ok {
+		templateVariables := v.([]interface{})
+		dashboard.TemplateVariables = *buildTemplateVariables(&templateVariables)
+	}
 	return &dashboard, nil
 }
 
@@ -277,10 +291,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) map[string]interfac
 	}
 	if layout := datadogWidget.Layout; layout != nil {
 		layoutMap := map[string]string{}
-		layoutMap["x"] = fmt.Sprintf("%f", *layout.X)
-		layoutMap["y"] = fmt.Sprintf("%f", *layout.Y)
-		layoutMap["height"] = fmt.Sprintf("%f", *layout.Height)
-		layoutMap["width"] = fmt.Sprintf("%f", *layout.Width)
+		layoutMap["x"] = strconv.FormatFloat(*layout.X, 'f', -1, 64)
+		layoutMap["y"] = strconv.FormatFloat(*layout.Y, 'f', -1, 64)
+		layoutMap["height"] = strconv.FormatFloat(*layout.Height, 'f', -1, 64)
+		layoutMap["width"] = strconv.FormatFloat(*layout.Width, 'f', -1, 64)
 		widgetMap["layout"] = layoutMap
 	}
 
@@ -289,7 +303,7 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) map[string]interfac
 		definition := datadogWidget.Definition.(datadog.NoteDefinition)
 		// Required params
 		ddefinitionMap["type"] = *definition.Type
-		ddefinitionMap["contente"] = *definition.Content
+		ddefinitionMap["content"] = *definition.Content
 		// Optional params
 		if definition.BackgroundColor != nil {
 			ddefinitionMap["background_color"] = *definition.BackgroundColor
@@ -327,12 +341,6 @@ func resourceDatadogDashboardRead(d *schema.ResourceData, meta interface{}) erro
 	if err := d.Set("title", dashboard.Title); err != nil {
 		return err
 	}
-	if err := d.Set("layout_type", dashboard.LayoutType); err != nil {
-		return err
-	}
-	if err := d.Set("description", dashboard.Description); err != nil {
-		return err
-	}
 
 	widgets := []map[string]interface{}{}
 	for _, datadogWidget := range dashboard.Widgets {
@@ -340,6 +348,24 @@ func resourceDatadogDashboardRead(d *schema.ResourceData, meta interface{}) erro
 	}
 	log.Printf("[DataDog] widgets: %v", pretty.Sprint(widgets))
 	if err := d.Set("widget", widgets); err != nil {
+		return err
+	}
+
+	if err := d.Set("layout_type", dashboard.LayoutType); err != nil {
+		return err
+	}
+	if err := d.Set("description", dashboard.Description); err != nil {
+		return err
+	}
+	if err := d.Set("is_read_only", dashboard.IsReadOnly); err != nil {
+		return err
+	}
+
+	notifyList := []string{}
+	for _, notifyListItem := range dashboard.NotifyList {
+		notifyList = append(notifyList, notifyListItem)
+	}
+	if err := d.Set("notify_list", notifyList); err != nil {
 		return err
 	}
 
