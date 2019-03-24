@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MLaureB/go-datadog-api"
+	"github.com/zorkian/go-datadog-api"
 	"github.com/hashicorp/terraform/helper/resource"
 	"github.com/hashicorp/terraform/terraform"
 )

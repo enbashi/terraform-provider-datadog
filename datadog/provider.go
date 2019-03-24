@@ -4,7 +4,7 @@ import (
 	"errors"
 	"log"
 
-	datadog "github.com/MLaureB/go-datadog-api"
+	datadog "github.com/zorkian/go-datadog-api"
 	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/terraform/helper/logging"
 	"github.com/hashicorp/terraform/helper/schema"
