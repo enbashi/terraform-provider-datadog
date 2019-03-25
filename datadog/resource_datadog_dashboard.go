@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zorkian/go-datadog-api"
+	"github.com/MLaureB/go-datadog-api"
 	"github.com/hashicorp/terraform/helper/schema"
 	"github.com/kr/pretty"
 )
@@ -44,10 +44,93 @@ func resourceDatadogDashboard() *schema.Resource {
 			},
 		},
 	}
+
+	widgetDefinition := &schema.Schema{
+		Type:        schema.TypeList,
+		Optional:    true,
+		MaxItems:    1,
+		Description: "The definition of a widget.",
+		Elem: &schema.Resource{
+			Schema: map[string]*schema.Schema{
+				"type": {
+					Type:     schema.TypeString,
+					Required: true,
+				},
+				"layout_type": {
+					Type:     schema.TypeString,
+					Optional: true,
+				},
+				"title": {
+					Type:     schema.TypeString,
+					Optional: true,
+				},
+				"widget": {
+					Type:        schema.TypeList,
+					Optional:    true,
+					Description: "A list of widget definitions.",
+					Elem: &schema.Resource{
+						Schema: map[string]*schema.Schema{
+							"id": {
+								Type:        schema.TypeInt,
+								Optional:    true,
+								Description: "The id of the widget.",
+							},
+							"definition": {
+								Type:        schema.TypeList,
+								MaxItems:    1,
+								Optional:    true,
+								Description: "The definition of a widget.",
+								Elem: &schema.Resource{
+									Schema: map[string]*schema.Schema{
+										"type": {
+											Type:     schema.TypeString,
+											Required: true,
+										},
+										"content": {
+											Type:     schema.TypeString,
+											Optional: true,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+				"content": {
+					Type:     schema.TypeString,
+					Optional: true,
+				},
+				"background_color": {
+					Type:     schema.TypeString,
+					Optional: true,
+				},
+				"font_size": {
+					Type:     schema.TypeString,
+					Optional: true,
+				},
+				"text_align": {
+					Type:     schema.TypeString,
+					Optional: true,
+				},
+				"show_tick": {
+					Type:     schema.TypeBool,
+					Optional: true,
+				},
+				"tick_pos": {
+					Type:     schema.TypeString,
+					Optional: true,
+				},
+				"tick_edge": {
+					Type:     schema.TypeString,
+					Optional: true,
+				},
+			},
+		},
+	}
 	widget := &schema.Schema{
 		Type:        schema.TypeList,
 		Required:    true,
-		Description: "A list of graph definitions.",
+		Description: "A list of widget definitions.",
 		Elem: &schema.Resource{
 			Schema: map[string]*schema.Schema{
 				"id": {
@@ -55,11 +138,8 @@ func resourceDatadogDashboard() *schema.Resource {
 					Optional:    true,
 					Description: "The id of the widget.",
 				},
-				"layout": widgetLayout,
-				"definition": {
-					Type:     schema.TypeMap,
-					Optional: true,
-				},
+				"layout":     widgetLayout,
+				"definition": widgetDefinition,
 			},
 		},
 	}
@@ -156,7 +236,7 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 	datadogWidgets := make([]datadog.BoardWidget, len(*terraformWidgets))
 	for i, widget := range *terraformWidgets {
 		widgetMap := widget.(map[string]interface{})
-		widgetDefinition := widgetMap["definition"].(map[string]interface{})
+		widgetDefinition := widgetMap["definition"].([]interface{})[0].(map[string]interface{})
 		widgetType := datadog.String(widgetDefinition["type"].(string))
 
 		datadogWidgets[i] = datadog.BoardWidget{}
@@ -185,6 +265,40 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 		}
 
 		switch *widgetType {
+		case "group":
+			definition := &datadog.GroupDefinition{}
+
+			// Required params
+			definition.Type = widgetType
+			if v, ok := widgetDefinition["layout_type"]; ok {
+				definition.LayoutType = datadog.String(v.(string))
+			}
+
+			if v, ok := widgetDefinition["widget"].([]interface{}); ok {
+				// terraformGroupWidgets := v.([]interface{})
+				groupWidgets, err := buildDashboardWidgets(&v, "ordered")
+				if err != nil {
+					return nil, fmt.Errorf("Failed to parse widgets: %s", err.Error())
+				}
+				definition.Widgets = *groupWidgets
+			}
+
+			// groupWidgets := make([]datadog.BoardWidget, 0)
+
+			// terraformGroupWidgets := d.Get("widget").([]interface{})
+			// groupWidgets, err := buildDashboardWidgets(&terraformWidgets, *layoutType)
+			// if err != nil {
+			// 	return nil, fmt.Errorf("Failed to parse widgets: %s", err.Error())
+			// }
+			// definition.Widgets = groupWidgets
+			// Optional params
+			if v, ok := widgetDefinition["title"]; ok {
+				WidgetTitle := datadog.WidgetTitle(v.(string))
+				definition.Title = &WidgetTitle
+			}
+
+			d.Definition = definition
+
 		case "note":
 			definition := &datadog.NoteDefinition{}
 
@@ -205,7 +319,7 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 				definition.TextAlign = &textAlign
 			}
 			if v, ok := widgetDefinition["show_tick"]; ok {
-				v, _ = strconv.ParseBool(v.(string))
+				// v, _ = strconv.ParseBool(v.(string))
 				definition.ShowTick = datadog.Bool(v.(bool))
 			}
 			if v, ok := widgetDefinition["tick_pos"]; ok {
