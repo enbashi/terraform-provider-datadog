@@ -241,7 +241,9 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 	datadogWidgets := make([]datadog.BoardWidget, len(*terraformWidgets))
 	for i, widget := range *terraformWidgets {
 		widgetMap := widget.(map[string]interface{})
-		// Todo: explain logic here
+		// The definition is defined in the schema as a TypeList with a MaxItems of 1
+		// So we we need to read it as an array
+		// This is in order to allow nested structure
 		widgetDefinition := widgetMap["definition"].([]interface{})[0].(map[string]interface{})
 		widgetType := datadog.String(widgetDefinition["type"].(string))
 
@@ -407,21 +409,43 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) map[string]interfac
 		widgetMap["layout"] = layoutMap
 	}
 
-	switch datadogWidget.Definition.(type) {
-	case datadog.GroupDefinition:
+	// We try to determine the widget type using two methods:
+	var widgetType string
+	// If this is a group widget, the definition will be a map
+	if v, ok := datadogWidget.Definition.(map[string]interface{}); ok {
+		widgetType = v["type"].(string)
+	} else {
+		// If this is a root widget, determine the widget type based on the definition type
+		switch datadogWidget.Definition.(type) {
+		case datadog.GroupDefinition:
+			widgetType = *datadogWidget.Definition.(datadog.GroupDefinition).Type
+		case datadog.NoteDefinition:
+			widgetType = *datadogWidget.Definition.(datadog.NoteDefinition).Type
+		}
+	}
+
+	// Regardless of how we determine the type, the conversion is the same
+	switch widgetType {
+	case "group":
 		definition := datadogWidget.Definition.(datadog.GroupDefinition)
 		// Required params
-		definitionMap["type"] = *definition.Type
+		definitionMap["type"] = widgetType
+
+		groupWidgets := []map[string]interface{}{}
+		for _, groupWidget := range definition.Widgets {
+			groupWidgets = append(groupWidgets, buildTerraformWidget(groupWidget))
+		}
+		definitionMap["widget"] = groupWidgets
 
 		// Optional params
 		if definition.Title != nil {
 			definitionMap["title"] = *definition.Title
 		}
 
-	case datadog.NoteDefinition:
+	case "note":
 		definition := datadogWidget.Definition.(datadog.NoteDefinition)
 		// Required params
-		definitionMap["type"] = *definition.Type
+		definitionMap["type"] = widgetType
 		definitionMap["content"] = *definition.Content
 		// Optional params
 		if definition.BackgroundColor != nil {
@@ -446,7 +470,9 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) map[string]interfac
 		// do nothing
 	}
 
-	// Todo: explain logic here
+	// The definition is defined in the schema as a TypeList with a MaxItems of 1
+	// So we we need to convert it to an array
+	// This is in order to allow nested structure
 	definition := []map[string]interface{}{}
 	definition = append(definition, definitionMap)
 	widgetMap["definition"] = definition
