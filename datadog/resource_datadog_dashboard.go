@@ -12,11 +12,6 @@ import (
 	"github.com/kr/pretty"
 )
 
-// Float64 is a helper routine that allocates a new float value
-// to store v and returns a pointer to it.
-// TODO: move to go-datadog-api/helpers.go
-func Float64(v float64) *float64 { return &v }
-
 func resourceDatadogDashboard() *schema.Resource {
 
 	widgetLayout := &schema.Schema{
@@ -45,88 +40,89 @@ func resourceDatadogDashboard() *schema.Resource {
 		},
 	}
 
-	widgetDefinition := &schema.Schema{
+	// shared definition props for all widgets
+	widgetDefinitionSchema := map[string]*schema.Schema{
+		"type": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+
+		// Note widget
+		"content": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"background_color": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"font_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"text_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"show_tick": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"tick_pos": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"tick_edge": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+	}
+
+	// Clone widgetDefinitionSchema and reuse it for rootWidgetDefinitionSchema
+	rootWidgetDefinitionSchema := make(map[string]*schema.Schema, len(widgetDefinitionSchema))
+	for k, v := range widgetDefinitionSchema {
+		rootWidgetDefinitionSchema[k] = v
+	}
+
+	// Additional props used in Group widget
+	rootWidgetDefinitionSchema["layout_type"] = &schema.Schema{
+		Type:         schema.TypeString,
+		Optional:     true,
+		Description:  "The layout type of the group widget. Only 'ordered' is supported",
+		ValidateFunc: validateGroupWidgetLayoutType,
+	}
+
+	groupWidget := &schema.Schema{
 		Type:        schema.TypeList,
 		Optional:    true,
-		MaxItems:    1,
-		Description: "The definition of a widget.",
+		Description: "A list of widget definitions.",
 		Elem: &schema.Resource{
 			Schema: map[string]*schema.Schema{
-				"type": {
-					Type:     schema.TypeString,
-					Required: true,
+				"id": {
+					Type:        schema.TypeInt,
+					Optional:    true,
+					Description: "The id of the widget.",
 				},
-				"layout_type": {
-					Type:     schema.TypeString,
-					Optional: true,
-				},
-				"title": {
-					Type:     schema.TypeString,
-					Optional: true,
-				},
-				"widget": {
+				"definition": {
 					Type:        schema.TypeList,
 					Optional:    true,
-					Description: "A list of widget definitions.",
+					MaxItems:    1,
+					Description: "The definition of a widget.",
 					Elem: &schema.Resource{
-						Schema: map[string]*schema.Schema{
-							"id": {
-								Type:        schema.TypeInt,
-								Optional:    true,
-								Description: "The id of the widget.",
-							},
-							"definition": {
-								Type:        schema.TypeList,
-								MaxItems:    1,
-								Optional:    true,
-								Description: "The definition of a widget.",
-								Elem: &schema.Resource{
-									Schema: map[string]*schema.Schema{
-										"type": {
-											Type:     schema.TypeString,
-											Required: true,
-										},
-										"content": {
-											Type:     schema.TypeString,
-											Optional: true,
-										},
-									},
-								},
-							},
-						},
+						Schema: widgetDefinitionSchema,
 					},
-				},
-				"content": {
-					Type:     schema.TypeString,
-					Optional: true,
-				},
-				"background_color": {
-					Type:     schema.TypeString,
-					Optional: true,
-				},
-				"font_size": {
-					Type:     schema.TypeString,
-					Optional: true,
-				},
-				"text_align": {
-					Type:     schema.TypeString,
-					Optional: true,
-				},
-				"show_tick": {
-					Type:     schema.TypeBool,
-					Optional: true,
-				},
-				"tick_pos": {
-					Type:     schema.TypeString,
-					Optional: true,
-				},
-				"tick_edge": {
-					Type:     schema.TypeString,
-					Optional: true,
 				},
 			},
 		},
 	}
+
+	// Allow Group widget at the root level only
+	rootWidgetDefinitionSchema["widget"] = groupWidget
+
 	widget := &schema.Schema{
 		Type:        schema.TypeList,
 		Required:    true,
@@ -138,8 +134,16 @@ func resourceDatadogDashboard() *schema.Resource {
 					Optional:    true,
 					Description: "The id of the widget.",
 				},
-				"layout":     widgetLayout,
-				"definition": widgetDefinition,
+				"layout": widgetLayout,
+				"definition": {
+					Type:        schema.TypeList,
+					Optional:    true,
+					MaxItems:    1,
+					Description: "The definition of a widget.",
+					Elem: &schema.Resource{
+						Schema: rootWidgetDefinitionSchema,
+					},
+				},
 			},
 		},
 	}
@@ -187,9 +191,10 @@ func resourceDatadogDashboard() *schema.Resource {
 			},
 			"widget": widget,
 			"layout_type": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Description: "The layout type of the dashboard.'free' or 'ordered'",
+				Type:         schema.TypeString,
+				Required:     true,
+				Description:  "The layout type of the dashboard.'free' or 'ordered'",
+				ValidateFunc: validateDashboardLayoutType,
 			},
 			"description": {
 				Type:        schema.TypeString,
@@ -275,22 +280,12 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 			}
 
 			if v, ok := widgetDefinition["widget"].([]interface{}); ok {
-				// terraformGroupWidgets := v.([]interface{})
 				groupWidgets, err := buildDashboardWidgets(&v, "ordered")
 				if err != nil {
-					return nil, fmt.Errorf("Failed to parse widgets: %s", err.Error())
+					return nil, fmt.Errorf("Failed to parse group widget: %s", err.Error())
 				}
 				definition.Widgets = *groupWidgets
 			}
-
-			// groupWidgets := make([]datadog.BoardWidget, 0)
-
-			// terraformGroupWidgets := d.Get("widget").([]interface{})
-			// groupWidgets, err := buildDashboardWidgets(&terraformWidgets, *layoutType)
-			// if err != nil {
-			// 	return nil, fmt.Errorf("Failed to parse widgets: %s", err.Error())
-			// }
-			// definition.Widgets = groupWidgets
 			// Optional params
 			if v, ok := widgetDefinition["title"]; ok {
 				WidgetTitle := datadog.WidgetTitle(v.(string))
@@ -304,30 +299,30 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 
 			// Required params
 			definition.Type = widgetType
-			if v, ok := widgetDefinition["content"]; ok {
-				definition.Content = datadog.String(v.(string))
+			if v, ok := widgetDefinition["content"].(string); ok && len(v) != 0 {
+				definition.Content = datadog.String(v)
 			}
 			// Optional params
-			if v, ok := widgetDefinition["background_color"]; ok {
-				definition.BackgroundColor = datadog.String(v.(string))
+			if v, ok := widgetDefinition["background_color"].(string); ok && len(v) != 0 {
+				definition.BackgroundColor = datadog.String(v)
 			}
-			if v, ok := widgetDefinition["font_size"]; ok {
-				definition.FontSize = datadog.String(v.(string))
+			if v, ok := widgetDefinition["font_size"].(string); ok && len(v) != 0 {
+				definition.FontSize = datadog.String(v)
 			}
-			if v, ok := widgetDefinition["text_align"]; ok {
-				textAlign := datadog.WidgetTextAlign(v.(string))
+			if v, ok := widgetDefinition["text_align"].(string); ok && len(v) != 0 {
+				textAlign := datadog.WidgetTextAlign(v)
 				definition.TextAlign = &textAlign
 			}
 			if v, ok := widgetDefinition["show_tick"]; ok {
-				// v, _ = strconv.ParseBool(v.(string))
 				definition.ShowTick = datadog.Bool(v.(bool))
 			}
-			if v, ok := widgetDefinition["tick_pos"]; ok {
-				definition.TickPos = datadog.String(v.(string))
+			if v, ok := widgetDefinition["tick_pos"].(string); ok && len(v) != 0 {
+				definition.TickPos = datadog.String(v)
 			}
-			if v, ok := widgetDefinition["tick_edge"]; ok {
-				definition.TickEdge = datadog.String(v.(string))
+			if v, ok := widgetDefinition["tick_edge"].(string); ok && len(v) != 0 {
+				definition.TickEdge = datadog.String(v)
 			}
+
 			d.Definition = definition
 		default:
 			return nil, fmt.Errorf("Invalid widget type: %s", *widgetType)
@@ -528,4 +523,29 @@ func resourceDatadogDashboardExists(d *schema.ResourceData, meta interface{}) (b
 		return false, err
 	}
 	return true, nil
+}
+
+// Validation functions
+func validateDashboardLayoutType(v interface{}, k string) (ws []string, errors []error) {
+	value := v.(string)
+	switch value {
+	case "ordered", "free":
+		break
+	default:
+		errors = append(errors, fmt.Errorf(
+			"%q contains an invalid layout_type parameter %q. Valid parameters are 'ordered' or 'free' ", k, value))
+	}
+	return
+}
+
+func validateGroupWidgetLayoutType(v interface{}, k string) (ws []string, errors []error) {
+	value := v.(string)
+	switch value {
+	case "ordered":
+		break
+	default:
+		errors = append(errors, fmt.Errorf(
+			"%q contains an invalid layout_type parameter %q. Valid parameter is 'ordered' ", k, value))
+	}
+	return
 }
