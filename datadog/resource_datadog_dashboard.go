@@ -241,6 +241,7 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 	datadogWidgets := make([]datadog.BoardWidget, len(*terraformWidgets))
 	for i, widget := range *terraformWidgets {
 		widgetMap := widget.(map[string]interface{})
+		// Todo: explain logic here
 		widgetDefinition := widgetMap["definition"].([]interface{})[0].(map[string]interface{})
 		widgetType := datadog.String(widgetDefinition["type"].(string))
 
@@ -328,7 +329,6 @@ func buildDashboardWidgets(terraformWidgets *[]interface{}, layoutType string) (
 			return nil, fmt.Errorf("Invalid widget type: %s", *widgetType)
 
 		}
-
 	}
 	return &datadogWidgets, nil
 }
@@ -393,7 +393,7 @@ func resourceDatadogDashboardUpdate(d *schema.ResourceData, meta interface{}) er
 
 func buildTerraformWidget(datadogWidget datadog.BoardWidget) map[string]interface{} {
 	widgetMap := map[string]interface{}{}
-	ddefinitionMap := map[string]interface{}{}
+	definitionMap := map[string]interface{}{}
 
 	if datadogWidget.Id != nil {
 		widgetMap["id"] = *datadogWidget.Id
@@ -408,35 +408,48 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) map[string]interfac
 	}
 
 	switch datadogWidget.Definition.(type) {
+	case datadog.GroupDefinition:
+		definition := datadogWidget.Definition.(datadog.GroupDefinition)
+		// Required params
+		definitionMap["type"] = *definition.Type
+
+		// Optional params
+		if definition.Title != nil {
+			definitionMap["title"] = *definition.Title
+		}
+
 	case datadog.NoteDefinition:
 		definition := datadogWidget.Definition.(datadog.NoteDefinition)
 		// Required params
-		ddefinitionMap["type"] = *definition.Type
-		ddefinitionMap["content"] = *definition.Content
+		definitionMap["type"] = *definition.Type
+		definitionMap["content"] = *definition.Content
 		// Optional params
 		if definition.BackgroundColor != nil {
-			ddefinitionMap["background_color"] = *definition.BackgroundColor
+			definitionMap["background_color"] = *definition.BackgroundColor
 		}
 		if definition.FontSize != nil {
-			ddefinitionMap["font_size"] = *definition.FontSize
+			definitionMap["font_size"] = *definition.FontSize
 		}
 		if definition.TextAlign != nil {
-			ddefinitionMap["text_align"] = *definition.TextAlign
+			definitionMap["text_align"] = *definition.TextAlign
 		}
 		if definition.ShowTick != nil {
-			ddefinitionMap["show_tick"] = strconv.FormatBool(*definition.ShowTick)
+			definitionMap["show_tick"] = *definition.ShowTick
 		}
 		if definition.TickPos != nil {
-			ddefinitionMap["tick_pos"] = *definition.TickPos
+			definitionMap["tick_pos"] = *definition.TickPos
 		}
 		if definition.TickEdge != nil {
-			ddefinitionMap["tick_edge"] = *definition.TickEdge
+			definitionMap["tick_edge"] = *definition.TickEdge
 		}
 	default:
-		// return "", errors.New("unsupported id type")
+		// do nothing
 	}
 
-	widgetMap["definition"] = ddefinitionMap
+	// Todo: explain logic here
+	definition := []map[string]interface{}{}
+	definition = append(definition, definitionMap)
+	widgetMap["definition"] = definition
 	return widgetMap
 }
 
