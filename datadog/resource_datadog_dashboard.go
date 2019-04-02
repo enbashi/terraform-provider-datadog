@@ -1,8 +1,10 @@
 package datadog
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"reflect"
 	"strings"
 
 	"github.com/MLaureB/go-datadog-api"
@@ -26,14 +28,26 @@ func resourceDatadogDashboard() *schema.Resource {
 				Required:    true,
 				Description: "The title of the dashboard.",
 			},
-			"widget": {
-				Type:        schema.TypeList,
-				Required:    true,
-				Description: "The list of widgets to display on the dashboard.",
+			"widget_json": {
+				Type:     schema.TypeList,
+				Required: true,
 				Elem: &schema.Resource{
-					Schema: getWidgetSchema(),
+					Schema: map[string]*schema.Schema{
+						"definition": {
+							Type:     schema.TypeString,
+							Required: true,
+						},
+					},
 				},
 			},
+			// "widget": {
+			// 	Type:        schema.TypeList,
+			// 	Required:    true,
+			// 	Description: "The list of widgets to display on the dashboard.",
+			// 	Elem: &schema.Resource{
+			// 		Schema: getWidgetSchema(),
+			// 	},
+			// },
 			"layout_type": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -78,13 +92,30 @@ func buildDatadogDashboard(d *schema.ResourceData) (*datadog.Board, error) {
 		IsReadOnly:  datadog.Bool(d.Get("is_read_only").(bool)),
 	}
 
-	// Build Widgets
-	widgets := d.Get("widget").([]interface{})
-	datadogWidgets, err := buildDatadogWidgets(&widgets)
-	if err != nil {
-		return nil, err
+	// Build Widgets with JSON
+	terraformWidgets := d.Get("widget_json").([]interface{})
+	datadogWidgets := make([]datadog.BoardWidget, len(terraformWidgets))
+	for i, _terraformWidget := range terraformWidgets {
+		terraformWidget := _terraformWidget.(map[string]interface{})
+		datadogWidget := datadog.BoardWidget{}
+		// Build Datadog definition
+		terraformDefinition := terraformWidget["definition"].(string)
+		noteDefinition := datadog.NoteDefinition{}
+		if err := json.Unmarshal([]byte(terraformDefinition), &noteDefinition); err != nil {
+			return nil, err
+		}
+		datadogWidget.Definition = noteDefinition
+		datadogWidgets[i] = datadogWidget
 	}
-	dashboard.Widgets = *datadogWidgets
+	dashboard.Widgets = datadogWidgets
+
+	// // Build Widgets
+	// widgets := d.Get("widget").([]interface{})
+	// datadogWidgets, err := buildDatadogWidgets(&widgets)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// dashboard.Widgets = *datadogWidgets
 
 	// Build NotifyList
 	notifyList := d.Get("notify_list").([]interface{})
@@ -133,14 +164,51 @@ func resourceDatadogDashboardRead(d *schema.ResourceData, meta interface{}) erro
 	if err := d.Set("title", dashboard.Title); err != nil {
 		return err
 	}
+	// Set JSON widgets
+	// Build empty terraform widgets
+	// for min(len(terraform
+	// compare the widgets
+	// 		if same: keep the terraforme one
+	// 		if different: serialize the datadog one
+	// if more widgets in datadogWidgets: serialize them all
+	// set terraform widgets
+
+	// Set widgets with JSON
+	existingTerraformWidgets := d.Get("widget_json").([]interface{})
+	datadogWidgets := &dashboard.Widgets
+	terraformWidgets := make([]map[string]interface{}, len(*datadogWidgets))
+	for i, datadogWidget := range *datadogWidgets {
+		existingTerraformWidget := existingTerraformWidgets[i].(map[string]interface{})
+		existingDefinition := existingTerraformWidget["definition"].(string)
+		noteDefinition := datadog.NoteDefinition{}
+		if err := json.Unmarshal([]byte(existingDefinition), &noteDefinition); err != nil {
+			return err
+		}
+		terraformWidget := map[string]interface{}{}
+		// return fmt.Errorf("Failed to compare terraform %s and datadog %s", pretty.Sprint(noteDefinition), pretty.Sprint(datadogWidget.Definition))
+		// return fmt.Errorf("Failed to comparison:  ", reflect.DeepEqual(noteDefinition, datadogWidget.Definition))
+		if reflect.DeepEqual(noteDefinition, datadogWidget.Definition) == false {
+			// Store new datadog definition
+			terraformDefinition, _ := json.Marshal(datadogWidget.Definition)
+			terraformWidget["definition"] = string(terraformDefinition)
+		} else {
+			// Keep existing terraform definition
+			terraformWidget["definition"] = existingDefinition
+		}
+		terraformWidgets[i] = terraformWidget
+	}
+	if err := d.Set("widget_json", terraformWidgets); err != nil {
+		return err
+	}
+
 	// Set widgets
-	widgets, err := buildTerraformWidgets(&dashboard.Widgets)
-	if err != nil {
-		return err
-	}
-	if err := d.Set("widget", widgets); err != nil {
-		return err
-	}
+	// widgets, err := buildTerraformWidgets(&dashboard.Widgets)
+	// if err != nil {
+	// 	return err
+	// }
+	// if err := d.Set("widget", widgets); err != nil {
+	// 	return err
+	// }
 	// Set layout type
 	if err := d.Set("layout_type", dashboard.LayoutType); err != nil {
 		return err
