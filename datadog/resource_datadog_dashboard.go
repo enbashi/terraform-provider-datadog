@@ -1,7 +1,6 @@
 package datadog
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -66,43 +65,6 @@ func resourceDatadogDashboard() *schema.Resource {
 			},
 		},
 	}
-}
-
-func buildDatadogDashboard(d *schema.ResourceData) (*datadog.Board, error) {
-	var dashboard datadog.Board
-
-	dashboard.SetId(d.Id())
-
-	if v, ok := d.GetOk("title"); ok {
-		dashboard.SetTitle(v.(string))
-	}
-	if v, ok := d.GetOk("layout_type"); ok {
-		dashboard.SetLayoutType(v.(string))
-	}
-	if v, ok := d.GetOk("description"); ok {
-		dashboard.SetDescription(v.(string))
-	}
-	if v, ok := d.GetOk("is_read_only"); ok {
-		dashboard.SetIsReadOnly(v.(bool))
-	}
-
-	// Build Widgets
-	terraformWidgets := d.Get("widget").([]interface{})
-	datadogWidgets, err := buildDatadogWidgets(&terraformWidgets)
-	if err != nil {
-		return nil, err
-	}
-	dashboard.Widgets = *datadogWidgets
-
-	// Build NotifyList
-	notifyList := d.Get("notify_list").([]interface{})
-	dashboard.NotifyList = *buildDatadogNotifyList(&notifyList)
-
-	// Build TemplateVariables
-	templateVariables := d.Get("template_variable").([]interface{})
-	dashboard.TemplateVariables = *buildDatadogTemplateVariables(&templateVariables)
-
-	return &dashboard, nil
 }
 
 func resourceDatadogDashboardCreate(d *schema.ResourceData, meta interface{}) error {
@@ -199,6 +161,43 @@ func resourceDatadogDashboardExists(d *schema.ResourceData, meta interface{}) (b
 	return true, nil
 }
 
+func buildDatadogDashboard(d *schema.ResourceData) (*datadog.Board, error) {
+	var dashboard datadog.Board
+
+	dashboard.SetId(d.Id())
+
+	if v, ok := d.GetOk("title"); ok {
+		dashboard.SetTitle(v.(string))
+	}
+	if v, ok := d.GetOk("layout_type"); ok {
+		dashboard.SetLayoutType(v.(string))
+	}
+	if v, ok := d.GetOk("description"); ok {
+		dashboard.SetDescription(v.(string))
+	}
+	if v, ok := d.GetOk("is_read_only"); ok {
+		dashboard.SetIsReadOnly(v.(bool))
+	}
+
+	// Build Widgets
+	terraformWidgets := d.Get("widget").([]interface{})
+	datadogWidgets, err := buildDatadogWidgets(&terraformWidgets)
+	if err != nil {
+		return nil, err
+	}
+	dashboard.Widgets = *datadogWidgets
+
+	// Build NotifyList
+	notifyList := d.Get("notify_list").([]interface{})
+	dashboard.NotifyList = *buildDatadogNotifyList(&notifyList)
+
+	// Build TemplateVariables
+	templateVariables := d.Get("template_variable").([]interface{})
+	dashboard.TemplateVariables = *buildDatadogTemplateVariables(&templateVariables)
+
+	return &dashboard, nil
+}
+
 //
 // Template Variable helpers
 //
@@ -284,7 +283,7 @@ func buildTerraformNotifyList(datadogNotifyList *[]string) *[]string {
 // Widget helpers
 //
 
-// The generic widget schema is a combinaison of the schema for a non-group widget
+// The generic widget schema is a combination of the schema for a non-group widget
 // and the schema for a Group Widget (which can contains only non-group widgets)
 func getWidgetSchema() map[string]*schema.Schema {
 	widgetSchema := getNonGroupWidgetSchema()
@@ -411,140 +410,73 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 	return terraformWidget, nil
 }
 
-// unmarshalWidgetDefinition is a custom unmarshal for Terraform widget definition. If first tries to unmarshal the definition
-// against a light struct to get the widget type. Then based on the widget type, it will try to unmarshal the definition
-// against the right definition struct.
-func unmarshalWidgetDefinition(terraformDefinition []byte) (interface{}, error) {
-	var definitionHandler struct {
-		Type *string `json:"type"`
+//
+// Widget Layout helpers
+//
+
+func getWidgetLayoutSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"x": {
+			Type:     schema.TypeFloat,
+			Required: true,
+		},
+		"y": {
+			Type:     schema.TypeFloat,
+			Required: true,
+		},
+		"width": {
+			Type:     schema.TypeFloat,
+			Required: true,
+		},
+		"height": {
+			Type:     schema.TypeFloat,
+			Required: true,
+		},
 	}
-	if err := json.Unmarshal(terraformDefinition, &definitionHandler); err != nil {
-		return nil, err
+}
+
+func buildDatadogWidgetLayout(terraformLayout map[string]interface{}) datadog.WidgetLayout {
+	datadogLayout := datadog.WidgetLayout{}
+
+	if _v, ok := terraformLayout["x"].(string); ok && len(_v) != 0 {
+		if v, err := strconv.ParseFloat(_v, 64); err == nil {
+			datadogLayout.SetX(v)
+		}
 	}
-	switch *definitionHandler.Type {
-	case datadog.ALERT_GRAPH_WIDGET:
-		var definition datadog.AlertGraphDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
+	if _v, ok := terraformLayout["y"].(string); ok && len(_v) != 0 {
+		if v, err := strconv.ParseFloat(_v, 64); err == nil {
+			datadogLayout.SetY(v)
 		}
-		return definition, nil
-	case datadog.ALERT_VALUE_WIDGET:
-		var definition datadog.AlertValueDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.CHANGE_WIDGET:
-		var definition datadog.ChangeDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.CHECK_STATUS_WIDGET:
-		var definition datadog.CheckStatusDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.DISTRIBUTION_WIDGET:
-		var definition datadog.DistributionDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.EVENT_STREAM_WIDGET:
-		var definition datadog.EventStreamDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.EVENT_TIMELINE_WIDGET:
-		var definition datadog.EventTimelineDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.FREE_TEXT_WIDGET:
-		var definition datadog.FreeTextDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.HEATMAP_WIDGET:
-		var definition datadog.HeatmapDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.HOSTMAP_WIDGET:
-		var definition datadog.HostmapDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.IFRAME_WIDGET:
-		var definition datadog.IframeDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.IMAGE_WIDGET:
-		var definition datadog.ImageDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.LOG_STREAM_WIDGET:
-		var definition datadog.LogStreamDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.MANAGE_STATUS_WIDGET:
-		var definition datadog.ManageStatusDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.NOTE_WIDGET:
-		var definition datadog.NoteDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.QUERY_VALUE_WIDGET:
-		var definition datadog.QueryValueDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.SCATTERPLOT_WIDGET:
-		var definition datadog.ScatterplotDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.TIMESERIES_WIDGET:
-		var definition datadog.TimeseriesDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.TOPLIST_WIDGET:
-		var definition datadog.ToplistDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	case datadog.TRACE_SERVICE_WIDGET:
-		var definition datadog.TraceServiceDefinition
-		if err := json.Unmarshal(terraformDefinition, &definition); err != nil {
-			return nil, err
-		}
-		return definition, nil
-	default:
-		return nil, fmt.Errorf("Cannot unmarshal widget definition of type: %s", *definitionHandler.Type)
 	}
+	if _v, ok := terraformLayout["height"].(string); ok && len(_v) != 0 {
+		if v, err := strconv.ParseFloat(_v, 64); err == nil {
+			datadogLayout.SetHeight(v)
+		}
+	}
+	if _v, ok := terraformLayout["width"].(string); ok && len(_v) != 0 {
+		if v, err := strconv.ParseFloat(_v, 64); err == nil {
+			datadogLayout.SetWidth(v)
+		}
+	}
+	return datadogLayout
+}
+
+func buildTerraformWidgetLayout(datadogLayout datadog.WidgetLayout) map[string]string {
+	terraformLayout := map[string]string{}
+
+	if v, ok := datadogLayout.GetXOk(); ok {
+		terraformLayout["x"] = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+	if v, ok := datadogLayout.GetYOk(); ok {
+		terraformLayout["y"] = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+	if v, ok := datadogLayout.GetHeightOk(); ok {
+		terraformLayout["height"] = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+	if v, ok := datadogLayout.GetWidthOk(); ok {
+		terraformLayout["width"] = strconv.FormatFloat(v, 'f', -1, 64)
+	}
+	return terraformLayout
 }
 
 //
@@ -613,75 +545,6 @@ func buildTerraformGroupDefinition(datadogGroupDefinition datadog.GroupDefinitio
 	}
 
 	return terraformGroupDefinition
-}
-
-//
-// Widget Layout helpers
-//
-
-func getWidgetLayoutSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"x": {
-			Type:     schema.TypeFloat,
-			Required: true,
-		},
-		"y": {
-			Type:     schema.TypeFloat,
-			Required: true,
-		},
-		"width": {
-			Type:     schema.TypeFloat,
-			Required: true,
-		},
-		"height": {
-			Type:     schema.TypeFloat,
-			Required: true,
-		},
-	}
-}
-
-func buildDatadogWidgetLayout(terraformLayout map[string]interface{}) datadog.WidgetLayout {
-	datadogLayout := datadog.WidgetLayout{}
-
-	if _v, ok := terraformLayout["x"].(string); ok && len(_v) != 0 {
-		if v, err := strconv.ParseFloat(_v, 64); err == nil {
-			datadogLayout.SetX(v)
-		}
-	}
-	if _v, ok := terraformLayout["y"].(string); ok && len(_v) != 0 {
-		if v, err := strconv.ParseFloat(_v, 64); err == nil {
-			datadogLayout.SetY(v)
-		}
-	}
-	if _v, ok := terraformLayout["height"].(string); ok && len(_v) != 0 {
-		if v, err := strconv.ParseFloat(_v, 64); err == nil {
-			datadogLayout.SetHeight(v)
-		}
-	}
-	if _v, ok := terraformLayout["width"].(string); ok && len(_v) != 0 {
-		if v, err := strconv.ParseFloat(_v, 64); err == nil {
-			datadogLayout.SetWidth(v)
-		}
-	}
-	return datadogLayout
-}
-
-func buildTerraformWidgetLayout(datadogLayout datadog.WidgetLayout) map[string]string {
-	terraformLayout := map[string]string{}
-
-	if v, ok := datadogLayout.GetXOk(); ok {
-		terraformLayout["x"] = strconv.FormatFloat(v, 'f', -1, 64)
-	}
-	if v, ok := datadogLayout.GetYOk(); ok {
-		terraformLayout["y"] = strconv.FormatFloat(v, 'f', -1, 64)
-	}
-	if v, ok := datadogLayout.GetHeightOk(); ok {
-		terraformLayout["height"] = strconv.FormatFloat(v, 'f', -1, 64)
-	}
-	if v, ok := datadogLayout.GetWidthOk(); ok {
-		terraformLayout["width"] = strconv.FormatFloat(v, 'f', -1, 64)
-	}
-	return terraformLayout
 }
 
 //
