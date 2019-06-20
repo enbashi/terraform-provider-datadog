@@ -320,6 +320,33 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getNoteDefinitionSchema(),
 			},
 		},
+		"alert_graph_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Alert Graph widget",
+			Elem: &schema.Resource{
+				Schema: getAlertGraphDefinitionSchema(),
+			},
+		},
+		"alert_value_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Alert Value widget",
+			Elem: &schema.Resource{
+				Schema: getAlertValueDefinitionSchema(),
+			},
+		},
+		"check_status_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Check Status widget",
+			Elem: &schema.Resource{
+				Schema: getCheckStatusDefinitionSchema(),
+			},
+		},
 		"timeseries_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -366,6 +393,18 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 		if noteDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogNoteDefinition(noteDefinition)
 		}
+	} else if _def, ok := terraformWidget["alert_graph_definition"].([]interface{}); ok && len(_def) > 0 {
+		if alertGraphDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogAlertGraphDefinition(alertGraphDefinition)
+		}
+	} else if _def, ok := terraformWidget["alert_value_definition"].([]interface{}); ok && len(_def) > 0 {
+		if alertValueDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogAlertValueDefinition(alertValueDefinition)
+		}
+	} else if _def, ok := terraformWidget["check_status_definition"].([]interface{}); ok && len(_def) > 0 {
+		if checkStatusDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogCheckStatusDefinition(checkStatusDefinition)
+		}
 	} else if _def, ok := terraformWidget["timeseries_definition"].([]interface{}); ok && len(_def) > 0 {
 		if timeseriesDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogTimeseriesDefinition(timeseriesDefinition)
@@ -405,10 +444,6 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		return nil, err
 	}
 	switch widgetType {
-	// case datadog.ALERT_GRAPH_WIDGET:
-	// 	datadogDefinition := datadogWidget.Definition.(datadog.AlertGraphDefinition)
-	// 	terraformDefinition := buildTerraformAlertGraphDefinition(datadogDefinition)
-	// 	terraformWidget["alert_graph_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.GROUP_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.GroupDefinition)
 		terraformDefinition := buildTerraformGroupDefinition(datadogDefinition)
@@ -417,6 +452,18 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.NoteDefinition)
 		terraformDefinition := buildTerraformNoteDefinition(datadogDefinition)
 		terraformWidget["note_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.ALERT_GRAPH_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.AlertGraphDefinition)
+		terraformDefinition := buildTerraformAlertGraphDefinition(datadogDefinition)
+		terraformWidget["alert_graph_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.ALERT_VALUE_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.AlertValueDefinition)
+		terraformDefinition := buildTerraformAlertValueDefinition(datadogDefinition)
+		terraformWidget["alert_value_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.CHECK_STATUS_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.CheckStatusDefinition)
+		terraformDefinition := buildTerraformCheckStatusDefinition(datadogDefinition)
+		terraformWidget["check_status_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.TIMESERIES_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.TimeseriesDefinition)
 		terraformDefinition := buildTerraformTimeseriesDefinition(datadogDefinition)
@@ -651,6 +698,302 @@ func buildTerraformNoteDefinition(datadogDefinition datadog.NoteDefinition) map[
 	}
 	if datadogDefinition.TickEdge != nil {
 		terraformDefinition["tick_edge"] = *datadogDefinition.TickEdge
+	}
+	return terraformDefinition
+}
+
+//
+// Alert Graph Widget Definition helpers
+//
+
+func getAlertGraphDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"alert_id": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"viz_type": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"time": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getWidgetTimeSchema(),
+			},
+		},
+	}
+}
+
+func buildDatadogAlertGraphDefinition(terraformDefinition map[string]interface{}) *datadog.AlertGraphDefinition {
+	datadogDefinition := &datadog.AlertGraphDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.ALERT_GRAPH_WIDGET)
+	datadogDefinition.AlertId = datadog.String(terraformDefinition["alert_id"].(string))
+	datadogDefinition.VizType = datadog.String(terraformDefinition["viz_type"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.Title = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.TitleSize = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.TitleAlign = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["time"].(map[string]interface{}); ok && len(v) > 0 {
+		datadogDefinition.Time = buildDatadogWidgetTime(v)
+	}
+	return datadogDefinition
+}
+
+func buildTerraformAlertGraphDefinition(datadogDefinition datadog.AlertGraphDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["alert_id"] = *datadogDefinition.AlertId
+	terraformDefinition["viz_type"] = *datadogDefinition.VizType
+	// Optional params
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	if datadogDefinition.Time != nil {
+		terraformDefinition["time"] = buildTerraformWidgetTime(*datadogDefinition.Time)
+	}
+	return terraformDefinition
+}
+
+//
+// Alert Value Widget Definition helpers
+//
+
+func getAlertValueDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"alert_id": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"precision": {
+			Type:     schema.TypeInt,
+			Optional: true,
+		},
+		"unit": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"text_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+	}
+}
+
+func buildDatadogAlertValueDefinition(terraformDefinition map[string]interface{}) *datadog.AlertValueDefinition {
+	datadogDefinition := &datadog.AlertValueDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.ALERT_VALUE_WIDGET)
+	datadogDefinition.AlertId = datadog.String(terraformDefinition["alert_id"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["precision"].(int); ok && v != 0 {
+		datadogDefinition.SetPrecision(v)
+	}
+	if v, ok := terraformDefinition["unit"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetUnit(v)
+	}
+	if v, ok := terraformDefinition["text_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTextAlign(v)
+	}
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitle(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleSize(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleAlign(v)
+	}
+	return datadogDefinition
+}
+
+func buildTerraformAlertValueDefinition(datadogDefinition datadog.AlertValueDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["alert_id"] = *datadogDefinition.AlertId
+	// Optional params
+	if datadogDefinition.Precision != nil {
+		terraformDefinition["precision"] = *datadogDefinition.Precision
+	}
+	if datadogDefinition.Unit != nil {
+		terraformDefinition["unit"] = *datadogDefinition.Unit
+	}
+	if datadogDefinition.TextAlign != nil {
+		terraformDefinition["text_align"] = *datadogDefinition.TextAlign
+	}
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	return terraformDefinition
+}
+
+//
+// Check Status Widget Definition helpers
+//
+
+func getCheckStatusDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"check": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"grouping": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"group": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"group_by": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+		},
+		"tags": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"time": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getWidgetTimeSchema(),
+			},
+		},
+	}
+}
+
+func buildDatadogCheckStatusDefinition(terraformDefinition map[string]interface{}) *datadog.CheckStatusDefinition {
+	datadogDefinition := &datadog.CheckStatusDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.CHECK_STATUS_WIDGET)
+	datadogDefinition.Check = datadog.String(terraformDefinition["check"].(string))
+	datadogDefinition.Grouping = datadog.String(terraformDefinition["grouping"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["group"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetGroup(v)
+	}
+	if terraformGroupBys, ok := terraformDefinition["group_by"].([]interface{}); ok && len(terraformGroupBys) > 0 {
+		datadogGroupBys := make([]string, len(terraformGroupBys))
+		for i, groupBy := range terraformGroupBys {
+			datadogGroupBys[i] = groupBy.(string)
+		}
+		datadogDefinition.GroupBy = datadogGroupBys
+	}
+	if terraformTags, ok := terraformDefinition["tags"].([]interface{}); ok && len(terraformTags) > 0 {
+		datadogTags := make([]string, len(terraformTags))
+		for i, tag := range terraformTags {
+			datadogTags[i] = tag.(string)
+		}
+		datadogDefinition.Tags = datadogTags
+	}
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitle(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleSize(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleAlign(v)
+	}
+	if v, ok := terraformDefinition["time"].(map[string]interface{}); ok && len(v) > 0 {
+		datadogDefinition.SetTime(*buildDatadogWidgetTime(v))
+	}
+	return datadogDefinition
+}
+
+func buildTerraformCheckStatusDefinition(datadogDefinition datadog.CheckStatusDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["check"] = *datadogDefinition.Check
+	terraformDefinition["grouping"] = *datadogDefinition.Grouping
+	// Optional params
+	if datadogDefinition.Group != nil {
+		terraformDefinition["group"] = *datadogDefinition.Group
+	}
+	if datadogDefinition.GroupBy != nil {
+		terraformGroupBys := make([]string, len(datadogDefinition.GroupBy))
+		for i, datadogGroupBy := range datadogDefinition.GroupBy {
+			terraformGroupBys[i] = datadogGroupBy
+		}
+		terraformDefinition["group_by"] = terraformGroupBys
+	}
+	if datadogDefinition.Tags != nil {
+		terraformTags := make([]string, len(datadogDefinition.Tags))
+		for i, datadogTag := range datadogDefinition.Tags {
+			terraformTags[i] = datadogTag
+		}
+		terraformDefinition["tags"] = terraformTags
+	}
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	if datadogDefinition.Time != nil {
+		terraformDefinition["time"] = buildTerraformWidgetTime(*datadogDefinition.Time)
 	}
 	return terraformDefinition
 }
@@ -1140,7 +1483,7 @@ func buildDatadogProcessQuery(terraformQuery map[string]interface{}) *datadog.Wi
 	}
 
 	if v, ok := terraformQuery["limit"].(int); ok && v != 0 {
-		datadogQuery.SetLimit(int(v))
+		datadogQuery.SetLimit(v)
 	}
 
 	return &datadogQuery
