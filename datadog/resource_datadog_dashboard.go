@@ -756,9 +756,10 @@ func buildTerraformTimeseriesDefinition(datadogDefinition datadog.TimeseriesDefi
 func getTimeseriesRequestSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		// A request should implement exactly one of the following type of query
-		"q":         getMetricQuerySchema(),
-		"apm_query": getApmOrLogQuerySchema(),
-		"log_query": getApmOrLogQuerySchema(),
+		"q":             getMetricQuerySchema(),
+		"apm_query":     getApmOrLogQuerySchema(),
+		"log_query":     getApmOrLogQuerySchema(),
+		"process_query": getProcessQuerySchema(),
 		// Settings specific to Timeseries requests
 		"display_type": {
 			Type:     schema.TypeString,
@@ -780,6 +781,9 @@ func buildDatadogTimeseriesRequests(terraformRequests *[]interface{}) *[]datadog
 		} else if v, ok := terraformRequest["log_query"].([]interface{}); ok && len(v) > 0 {
 			logQuery := v[0].(map[string]interface{})
 			datadogTimeseriesRequest.LogQuery = buildDatadogApmOrLogQuery(logQuery)
+		} else if v, ok := terraformRequest["process_query"].([]interface{}); ok && len(v) > 0 {
+			processQuery := v[0].(map[string]interface{})
+			datadogTimeseriesRequest.ProcessQuery = buildDatadogProcessQuery(processQuery)
 		}
 		if v, ok := terraformRequest["display_type"].(string); ok && len(v) != 0 {
 			datadogTimeseriesRequest.DisplayType = datadog.String(v)
@@ -800,6 +804,9 @@ func buildTerraformTimeseriesRequests(datadogTimeseriesRequests *[]datadog.Times
 		} else if datadogRequest.LogQuery != nil {
 			terraformQuery := buildTerraformApmOrLogQuery(*datadogRequest.LogQuery)
 			terraformRequest["log_query"] = []map[string]interface{}{terraformQuery}
+		} else if datadogRequest.ProcessQuery != nil {
+			terraformQuery := buildTerraformProcessQuery(*datadogRequest.ProcessQuery)
+			terraformRequest["process_query"] = []map[string]interface{}{terraformQuery}
 		}
 		if datadogRequest.DisplayType != nil {
 			terraformRequest["display_type"] = *datadogRequest.DisplayType
@@ -1089,8 +1096,9 @@ func buildTerraformApmOrLogQuery(datadogQuery datadog.WidgetApmOrLogQuery) map[s
 // Process Query
 func getProcessQuerySchema() *schema.Schema {
 	return &schema.Schema{
-		Type:     schema.TypeMap,
+		Type:     schema.TypeList,
 		Optional: true,
+		MaxItems: 1,
 		Elem: &schema.Resource{
 			Schema: map[string]*schema.Schema{
 				"metric": {
@@ -1114,7 +1122,48 @@ func getProcessQuerySchema() *schema.Schema {
 		},
 	}
 }
-func buildDatadogProcessQuery(terrraformQuery map[string]interface{}) *datadog.WidgetProcessQuery {
+func buildDatadogProcessQuery(terraformQuery map[string]interface{}) *datadog.WidgetProcessQuery {
 	datadogQuery := datadog.WidgetProcessQuery{}
+	if v, ok := terraformQuery["metric"].(string); ok && len(v) != 0 {
+		datadogQuery.SetMetric(v)
+	}
+	if v, ok := terraformQuery["search_by"].(string); ok && len(v) != 0 {
+		datadogQuery.SetSearchBy(v)
+	}
+
+	if terraformFilterBys, ok := terraformQuery["filter_by"].([]interface{}); ok && len(terraformFilterBys) > 0 {
+		datadogFilterbys := make([]string, len(terraformFilterBys))
+		for i, filtrBy := range terraformFilterBys {
+			datadogFilterbys[i] = filtrBy.(string)
+		}
+		datadogQuery.FilterBy = datadogFilterbys
+	}
+
+	if v, ok := terraformQuery["limit"].(int); ok && v != 0 {
+		datadogQuery.SetLimit(int(v))
+	}
+
 	return &datadogQuery
+}
+
+func buildTerraformProcessQuery(datadogQuery datadog.WidgetProcessQuery) map[string]interface{} {
+	terraformQuery := map[string]interface{}{}
+	if datadogQuery.Metric != nil {
+		terraformQuery["metric"] = *datadogQuery.Metric
+	}
+	if datadogQuery.SearchBy != nil {
+		terraformQuery["search_by"] = *datadogQuery.SearchBy
+	}
+	if datadogQuery.FilterBy != nil {
+		terraformFilterBys := make([]string, len(datadogQuery.FilterBy))
+		for i, datadogFilterBy := range datadogQuery.FilterBy {
+			terraformFilterBys[i] = datadogFilterBy
+		}
+		terraformQuery["filter_by"] = terraformFilterBys
+	}
+	if datadogQuery.Limit != nil {
+		terraformQuery["limit"] = *datadogQuery.Limit
+	}
+
+	return terraformQuery
 }
