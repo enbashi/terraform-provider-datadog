@@ -347,15 +347,6 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getCheckStatusDefinitionSchema(),
 			},
 		},
-		"free_text_definition": {
-			Type:        schema.TypeList,
-			Optional:    true,
-			MaxItems:    1,
-			Description: "The definition for a Free Text widget",
-			Elem: &schema.Resource{
-				Schema: getFreeTextDefinitionSchema(),
-			},
-		},
 		// "event_stream_definition": {
 		// 	Type:        schema.TypeList,
 		// 	Optional:    true,
@@ -365,6 +356,24 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 		// 		Schema: getEventStreamDefinitionSchema(),
 		// 	},
 		// },
+		"free_text_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Free Text widget",
+			Elem: &schema.Resource{
+				Schema: getFreeTextDefinitionSchema(),
+			},
+		},
+		"iframe_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for an Iframe widget",
+			Elem: &schema.Resource{
+				Schema: getIframeDefinitionSchema(),
+			},
+		},
 		"timeseries_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -430,6 +439,10 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 	} else if _def, ok := terraformWidget["free_text_definition"].([]interface{}); ok && len(_def) > 0 {
 		if freeTextDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogFreeTextDefinition(freeTextDefinition)
+		}
+	} else if _def, ok := terraformWidget["iframe_definition"].([]interface{}); ok && len(_def) > 0 {
+		if iframeDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogIframeDefinition(iframeDefinition)
 		}
 	} else if _def, ok := terraformWidget["timeseries_definition"].([]interface{}); ok && len(_def) > 0 {
 		if timeseriesDefinition, ok := _def[0].(map[string]interface{}); ok {
@@ -498,6 +511,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.FreeTextDefinition)
 		terraformDefinition := buildTerraformFreeTextDefinition(datadogDefinition)
 		terraformWidget["free_text_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.IFRAME_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.IframeDefinition)
+		terraformDefinition := buildTerraformIframeDefinition(datadogDefinition)
+		terraformWidget["iframe_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.TIMESERIES_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.TimeseriesDefinition)
 		terraformDefinition := buildTerraformTimeseriesDefinition(datadogDefinition)
@@ -1176,6 +1193,34 @@ func buildTerraformFreeTextDefinition(datadogDefinition datadog.FreeTextDefiniti
 	if datadogDefinition.TextAlign != nil {
 		terraformDefinition["text_align"] = *datadogDefinition.TextAlign
 	}
+	return terraformDefinition
+}
+
+//
+// Iframe Definition helpers
+//
+
+func getIframeDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"url": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+	}
+}
+
+func buildDatadogIframeDefinition(terraformDefinition map[string]interface{}) *datadog.IframeDefinition {
+	datadogDefinition := &datadog.IframeDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.IFRAME_WIDGET)
+	datadogDefinition.SetUrl(terraformDefinition["url"].(string))
+	return datadogDefinition
+}
+
+func buildTerraformIframeDefinition(datadogDefinition datadog.IframeDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["url"] = *datadogDefinition.Url
 	return terraformDefinition
 }
 
