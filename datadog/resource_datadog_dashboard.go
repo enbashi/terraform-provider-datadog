@@ -401,6 +401,15 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getTimeseriesDefinitionSchema(),
 			},
 		},
+		"toplist_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Toplist widget",
+			Elem: &schema.Resource{
+				Schema: getToplistDefinitionSchema(),
+			},
+		},
 	}
 }
 
@@ -473,6 +482,10 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 	} else if _def, ok := terraformWidget["timeseries_definition"].([]interface{}); ok && len(_def) > 0 {
 		if timeseriesDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogTimeseriesDefinition(timeseriesDefinition)
+		}
+	} else if _def, ok := terraformWidget["toplist_definition"].([]interface{}); ok && len(_def) > 0 {
+		if toplistDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogToplistDefinition(toplistDefinition)
 		}
 	} else {
 		return nil, fmt.Errorf("Failed to find valid definition in widget configuration")
@@ -553,6 +566,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.TimeseriesDefinition)
 		terraformDefinition := buildTerraformTimeseriesDefinition(datadogDefinition)
 		terraformWidget["timeseries_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.TOPLIST_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.ToplistDefinition)
+		terraformDefinition := buildTerraformToplistDefinition(datadogDefinition)
+		terraformWidget["toplist_definition"] = []map[string]interface{}{terraformDefinition}
 	default:
 		return nil, fmt.Errorf("Unsupported widget type: %s - %s", widgetType, datadog.TIMESERIES_WIDGET)
 	}
@@ -1567,7 +1584,244 @@ func buildTerraformTimeseriesRequests(datadogTimeseriesRequests *[]datadog.Times
 	return &terraformRequests
 }
 
+//
+// Toplist Widget Definition helpers
+//
+func getToplistDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"request": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getToplistRequestSchema(),
+			},
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"time": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getWidgetTimeSchema(),
+			},
+		},
+	}
+}
+func buildDatadogToplistDefinition(terraformDefinition map[string]interface{}) *datadog.ToplistDefinition {
+	datadogDefinition := &datadog.ToplistDefinition{}
+	// Required params
+	datadogDefinition.SetType(datadog.TOPLIST_WIDGET)
+	terraformRequests := terraformDefinition["request"].([]interface{})
+	datadogDefinition.Requests = *buildDatadogToplistRequests(&terraformRequests)
+	// Optional params
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.Title = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.TitleSize = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.TitleAlign = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["time"].(map[string]interface{}); ok && len(v) > 0 {
+		datadogDefinition.Time = buildDatadogWidgetTime(v)
+	}
+	return datadogDefinition
+}
+func buildTerraformToplistDefinition(datadogDefinition datadog.ToplistDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["request"] = buildTerraformToplistRequests(&datadogDefinition.Requests)
+	// Optional params
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	if datadogDefinition.Time != nil {
+		terraformDefinition["time"] = buildTerraformWidgetTime(*datadogDefinition.Time)
+	}
+	return terraformDefinition
+}
+
+func getToplistRequestSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		// A request should implement exactly one of the following type of query
+		"q":             getMetricQuerySchema(),
+		"apm_query":     getApmOrLogQuerySchema(),
+		"log_query":     getApmOrLogQuerySchema(),
+		"process_query": getProcessQuerySchema(),
+		// Settings specific to Toplist requests
+		"conditional_formats": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getWidgetConditionalFormatSchema(),
+			},
+		},
+	}
+}
+func buildDatadogToplistRequests(terraformRequests *[]interface{}) *[]datadog.ToplistRequest {
+	datadogRequests := make([]datadog.ToplistRequest, len(*terraformRequests))
+	for i, _request := range *terraformRequests {
+		terraformRequest := _request.(map[string]interface{})
+		// Build ToplistRequest
+		datadogToplistRequest := datadog.ToplistRequest{}
+		if v, ok := terraformRequest["q"].(string); ok && len(v) != 0 {
+			datadogToplistRequest.MetricQuery = datadog.String(v)
+		} else if v, ok := terraformRequest["apm_query"].([]interface{}); ok && len(v) > 0 {
+			apmQuery := v[0].(map[string]interface{})
+			datadogToplistRequest.ApmQuery = buildDatadogApmOrLogQuery(apmQuery)
+		} else if v, ok := terraformRequest["log_query"].([]interface{}); ok && len(v) > 0 {
+			logQuery := v[0].(map[string]interface{})
+			datadogToplistRequest.LogQuery = buildDatadogApmOrLogQuery(logQuery)
+		} else if v, ok := terraformRequest["process_query"].([]interface{}); ok && len(v) > 0 {
+			processQuery := v[0].(map[string]interface{})
+			datadogToplistRequest.ProcessQuery = buildDatadogProcessQuery(processQuery)
+		}
+		if v, ok := terraformRequest["conditional_formats"].([]interface{}); ok && len(v) != 0 {
+			datadogToplistRequest.ConditionalFormats = *buildDatadogWidgetConditionalFormat(&v)
+		}
+		datadogRequests[i] = datadogToplistRequest
+	}
+	return &datadogRequests
+}
+func buildTerraformToplistRequests(datadogToplistRequests *[]datadog.ToplistRequest) *[]map[string]interface{} {
+	terraformRequests := make([]map[string]interface{}, len(*datadogToplistRequests))
+	for i, datadogRequest := range *datadogToplistRequests {
+		terraformRequest := map[string]interface{}{}
+		if datadogRequest.MetricQuery != nil {
+			terraformRequest["q"] = *datadogRequest.MetricQuery
+		} else if datadogRequest.ApmQuery != nil {
+			terraformQuery := buildTerraformApmOrLogQuery(*datadogRequest.ApmQuery)
+			terraformRequest["apm_query"] = []map[string]interface{}{terraformQuery}
+		} else if datadogRequest.LogQuery != nil {
+			terraformQuery := buildTerraformApmOrLogQuery(*datadogRequest.LogQuery)
+			terraformRequest["log_query"] = []map[string]interface{}{terraformQuery}
+		} else if datadogRequest.ProcessQuery != nil {
+			terraformQuery := buildTerraformProcessQuery(*datadogRequest.ProcessQuery)
+			terraformRequest["process_query"] = []map[string]interface{}{terraformQuery}
+		}
+		if datadogRequest.ConditionalFormats != nil {
+			terraformConditionalFormats := buildTerraformWidgetConditionalFormat(&datadogRequest.ConditionalFormats)
+			terraformRequest["conditional_formats"] = terraformConditionalFormats
+		}
+		terraformRequests[i] = terraformRequest
+	}
+	return &terraformRequests
+}
+
+// Widget Conditional Format helpers
+func getWidgetConditionalFormatSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"comparator": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"value": {
+			Type:     schema.TypeFloat,
+			Required: true,
+		},
+		"palette": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"custom_bg_color": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"custom_fg_color": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"image_url": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"hide_value": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"timeframe": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+	}
+}
+func buildDatadogWidgetConditionalFormat(terraformWidgetConditionalFormat *[]interface{}) *[]datadog.WidgetConditionalFormat {
+	datadogWidgetConditionalFormat := make([]datadog.WidgetConditionalFormat, len(*terraformWidgetConditionalFormat))
+	for i, _conditionalFormat := range *terraformWidgetConditionalFormat {
+		terraformConditionalFormat := _conditionalFormat.(map[string]interface{})
+		datadogConditionalFormat := datadog.WidgetConditionalFormat{}
+		// Required
+		datadogConditionalFormat.SetComparator(terraformConditionalFormat["comparator"].(string))
+		datadogConditionalFormat.SetValue(terraformConditionalFormat["value"].(float64))
+		datadogConditionalFormat.SetPalette(terraformConditionalFormat["palette"].(string))
+		// Optional
+		if v, ok := terraformConditionalFormat["custom_bg_color"].(string); ok && len(v) != 0 {
+			datadogConditionalFormat.SetCustomBgColor(v)
+		}
+		if v, ok := terraformConditionalFormat["custom_fg_color"].(string); ok && len(v) != 0 {
+			datadogConditionalFormat.SetCustomFgColor(v)
+		}
+		if v, ok := terraformConditionalFormat["image_url"].(string); ok && len(v) != 0 {
+			datadogConditionalFormat.SetImageUrl(v)
+		}
+		if v, ok := terraformConditionalFormat["hide_value"].(bool); ok {
+			datadogConditionalFormat.SetHideValue(v)
+		}
+		if v, ok := terraformConditionalFormat["timeframe"].(string); ok && len(v) != 0 {
+			datadogConditionalFormat.SetTimeframe(v)
+		}
+		datadogWidgetConditionalFormat[i] = datadogConditionalFormat
+	}
+	return &datadogWidgetConditionalFormat
+}
+func buildTerraformWidgetConditionalFormat(datadogWidgetConditionalFormat *[]datadog.WidgetConditionalFormat) *[]map[string]interface{} {
+	terraformWidgetConditionalFormat := make([]map[string]interface{}, len(*datadogWidgetConditionalFormat))
+	for i, datadogConditionalFormat := range *datadogWidgetConditionalFormat {
+		terraformConditionalFormat := map[string]interface{}{}
+		// Required params
+		terraformConditionalFormat["comparator"] = *datadogConditionalFormat.Comparator
+		terraformConditionalFormat["value"] = *datadogConditionalFormat.Value
+		terraformConditionalFormat["palette"] = *datadogConditionalFormat.Palette
+		// Optional params
+		if datadogConditionalFormat.CustomBgColor != nil {
+			terraformConditionalFormat["custom_bg_color"] = *datadogConditionalFormat.CustomBgColor
+		}
+		if datadogConditionalFormat.CustomFgColor != nil {
+			terraformConditionalFormat["custom_fg_color"] = *datadogConditionalFormat.CustomFgColor
+		}
+		if datadogConditionalFormat.ImageUrl != nil {
+			terraformConditionalFormat["image_url"] = *datadogConditionalFormat.ImageUrl
+		}
+		if datadogConditionalFormat.HideValue != nil {
+			terraformConditionalFormat["hide_value"] = *datadogConditionalFormat.HideValue
+		}
+		if datadogConditionalFormat.Timeframe != nil {
+			terraformConditionalFormat["timeframe"] = *datadogConditionalFormat.Timeframe
+		}
+		terraformWidgetConditionalFormat[i] = terraformConditionalFormat
+	}
+	return &terraformWidgetConditionalFormat
+}
+
 // Widget Time helpers
+
 func getWidgetTimeSchema() map[string]*schema.Schema {
 	return map[string]*schema.Schema{
 		"live_span": {
