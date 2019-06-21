@@ -374,6 +374,15 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getIframeDefinitionSchema(),
 			},
 		},
+		"image_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for an Image widget",
+			Elem: &schema.Resource{
+				Schema: getImageDefinitionSchema(),
+			},
+		},
 		"timeseries_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -443,6 +452,10 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 	} else if _def, ok := terraformWidget["iframe_definition"].([]interface{}); ok && len(_def) > 0 {
 		if iframeDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogIframeDefinition(iframeDefinition)
+		}
+	} else if _def, ok := terraformWidget["image_definition"].([]interface{}); ok && len(_def) > 0 {
+		if imageDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogImageDefinition(imageDefinition)
 		}
 	} else if _def, ok := terraformWidget["timeseries_definition"].([]interface{}); ok && len(_def) > 0 {
 		if timeseriesDefinition, ok := _def[0].(map[string]interface{}); ok {
@@ -515,6 +528,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.IframeDefinition)
 		terraformDefinition := buildTerraformIframeDefinition(datadogDefinition)
 		terraformWidget["iframe_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.IMAGE_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.ImageDefinition)
+		terraformDefinition := buildTerraformImageDefinition(datadogDefinition)
+		terraformWidget["image_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.TIMESERIES_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.TimeseriesDefinition)
 		terraformDefinition := buildTerraformTimeseriesDefinition(datadogDefinition)
@@ -1221,6 +1238,56 @@ func buildTerraformIframeDefinition(datadogDefinition datadog.IframeDefinition) 
 	terraformDefinition := map[string]interface{}{}
 	// Required params
 	terraformDefinition["url"] = *datadogDefinition.Url
+	return terraformDefinition
+}
+
+//
+// Image Widget Definition helpers
+//
+
+func getImageDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"url": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"sizing": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"margin": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+	}
+}
+
+func buildDatadogImageDefinition(terraformDefinition map[string]interface{}) *datadog.ImageDefinition {
+	datadogDefinition := &datadog.ImageDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.IMAGE_WIDGET)
+	datadogDefinition.Url = datadog.String(terraformDefinition["url"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["sizing"].(string); ok && len(v) != 0 {
+		datadogDefinition.Sizing = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["margin"].(string); ok && len(v) != 0 {
+		datadogDefinition.Margin = datadog.String(v)
+	}
+	return datadogDefinition
+}
+
+func buildTerraformImageDefinition(datadogDefinition datadog.ImageDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["url"] = *datadogDefinition.Url
+	// Optional params
+	if datadogDefinition.Sizing != nil {
+		terraformDefinition["sizing"] = *datadogDefinition.Sizing
+	}
+	if datadogDefinition.Margin != nil {
+		terraformDefinition["margin"] = *datadogDefinition.Margin
+	}
 	return terraformDefinition
 }
 
