@@ -383,6 +383,15 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getImageDefinitionSchema(),
 			},
 		},
+		"log_stream_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for an Log Stream widget",
+			Elem: &schema.Resource{
+				Schema: getLogStreamDefinitionSchema(),
+			},
+		},
 		"timeseries_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -456,6 +465,10 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 	} else if _def, ok := terraformWidget["image_definition"].([]interface{}); ok && len(_def) > 0 {
 		if imageDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogImageDefinition(imageDefinition)
+		}
+	} else if _def, ok := terraformWidget["log_stream_definition"].([]interface{}); ok && len(_def) > 0 {
+		if logStreamDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogLogStreamDefinition(logStreamDefinition)
 		}
 	} else if _def, ok := terraformWidget["timeseries_definition"].([]interface{}); ok && len(_def) > 0 {
 		if timeseriesDefinition, ok := _def[0].(map[string]interface{}); ok {
@@ -532,6 +545,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.ImageDefinition)
 		terraformDefinition := buildTerraformImageDefinition(datadogDefinition)
 		terraformWidget["image_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.LOG_STREAM_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.LogStreamDefinition)
+		terraformDefinition := buildTerraformLogStreamDefinition(datadogDefinition)
+		terraformWidget["log_stream_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.TIMESERIES_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.TimeseriesDefinition)
 		terraformDefinition := buildTerraformTimeseriesDefinition(datadogDefinition)
@@ -1287,6 +1304,108 @@ func buildTerraformImageDefinition(datadogDefinition datadog.ImageDefinition) ma
 	}
 	if datadogDefinition.Margin != nil {
 		terraformDefinition["margin"] = *datadogDefinition.Margin
+	}
+	return terraformDefinition
+}
+
+//
+// Log Stream Widget Definition helpers
+//
+
+func getLogStreamDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"logset": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"query": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"columns": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"time": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getWidgetTimeSchema(),
+			},
+		},
+	}
+}
+
+func buildDatadogLogStreamDefinition(terraformDefinition map[string]interface{}) *datadog.LogStreamDefinition {
+	datadogDefinition := &datadog.LogStreamDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.LOG_STREAM_WIDGET)
+	datadogDefinition.Logset = datadog.String(terraformDefinition["logset"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["query"].(string); ok && len(v) != 0 {
+		datadogDefinition.Query = datadog.String(v)
+	}
+	if terraformColumns, ok := terraformDefinition["columns"].([]interface{}); ok && len(terraformColumns) > 0 {
+		datadogColumns := make([]string, len(terraformColumns))
+		for i, column := range terraformColumns {
+			datadogColumns[i] = column.(string)
+		}
+		datadogDefinition.Columns = datadogColumns
+	}
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.Title = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.TitleSize = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.TitleAlign = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["time"].(map[string]interface{}); ok && len(v) > 0 {
+		datadogDefinition.Time = buildDatadogWidgetTime(v)
+	}
+	return datadogDefinition
+}
+
+func buildTerraformLogStreamDefinition(datadogDefinition datadog.LogStreamDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["logset"] = *datadogDefinition.Logset
+	// Optional params
+	if datadogDefinition.Query != nil {
+		terraformDefinition["query"] = *datadogDefinition.Query
+	}
+	if datadogDefinition.Columns != nil {
+		terraformColumns := make([]string, len(datadogDefinition.Columns))
+		for i, datadogColumn := range datadogDefinition.Columns {
+			terraformColumns[i] = datadogColumn
+		}
+		terraformDefinition["columns"] = terraformColumns
+	}
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	if datadogDefinition.Time != nil {
+		terraformDefinition["time"] = buildTerraformWidgetTime(*datadogDefinition.Time)
 	}
 	return terraformDefinition
 }
