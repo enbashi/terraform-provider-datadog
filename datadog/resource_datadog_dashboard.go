@@ -338,6 +338,15 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getAlertValueDefinitionSchema(),
 			},
 		},
+		"change_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Change  widget",
+			Elem: &schema.Resource{
+				Schema: getChangeDefinitionSchema(),
+			},
+		},
 		"distribution_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -473,6 +482,10 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 		if alertValueDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogAlertValueDefinition(alertValueDefinition)
 		}
+	} else if _def, ok := terraformWidget["change_definition"].([]interface{}); ok && len(_def) > 0 {
+		if changeDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogChangeDefinition(changeDefinition)
+		}
 	} else if _def, ok := terraformWidget["distribution_definition"].([]interface{}); ok && len(_def) > 0 {
 		if distributionDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogDistributionDefinition(distributionDefinition)
@@ -564,6 +577,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.AlertValueDefinition)
 		terraformDefinition := buildTerraformAlertValueDefinition(datadogDefinition)
 		terraformWidget["alert_value_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.CHANGE_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.ChangeDefinition)
+		terraformDefinition := buildTerraformChangeDefinition(datadogDefinition)
+		terraformWidget["change_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.DISTRIBUTION_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.DistributionDefinition)
 		terraformDefinition := buildTerraformDistributionDefinition(datadogDefinition)
@@ -1005,6 +1022,197 @@ func buildTerraformAlertValueDefinition(datadogDefinition datadog.AlertValueDefi
 		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
 	}
 	return terraformDefinition
+}
+
+//
+// Change Widget Definition helpers
+//
+
+func getChangeDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"request": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getChangeRequestSchema(),
+			},
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"time": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getWidgetTimeSchema(),
+			},
+		},
+	}
+}
+func buildDatadogChangeDefinition(terraformDefinition map[string]interface{}) *datadog.ChangeDefinition {
+	datadogDefinition := &datadog.ChangeDefinition{}
+	// Required params
+	datadogDefinition.SetType(datadog.CHANGE_WIDGET)
+	terraformRequests := terraformDefinition["request"].([]interface{})
+	datadogDefinition.Requests = *buildDatadogChangeRequests(&terraformRequests)
+	// Optional params
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitle(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleSize(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleAlign(v)
+	}
+	if v, ok := terraformDefinition["time"].(map[string]interface{}); ok && len(v) > 0 {
+		datadogDefinition.SetTime(*buildDatadogWidgetTime(v))
+	}
+	return datadogDefinition
+}
+func buildTerraformChangeDefinition(datadogDefinition datadog.ChangeDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["request"] = buildTerraformChangeRequests(&datadogDefinition.Requests)
+	// Optional params
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	if datadogDefinition.Time != nil {
+		terraformDefinition["time"] = buildTerraformWidgetTime(*datadogDefinition.Time)
+	}
+	return terraformDefinition
+}
+
+func getChangeRequestSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		// A request should implement exactly one of the following type of query
+		"q":             getMetricQuerySchema(),
+		"apm_query":     getApmOrLogQuerySchema(),
+		"log_query":     getApmOrLogQuerySchema(),
+		"process_query": getProcessQuerySchema(),
+		// Settings specific to Change requests
+		"change_type": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"compare_to": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"increase_good": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"order_by": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"order_dir": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"show_present": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+	}
+}
+func buildDatadogChangeRequests(terraformRequests *[]interface{}) *[]datadog.ChangeRequest {
+	datadogRequests := make([]datadog.ChangeRequest, len(*terraformRequests))
+	for i, _request := range *terraformRequests {
+		terraformRequest := _request.(map[string]interface{})
+		// Build ChangeRequest
+		datadogChangeRequest := datadog.ChangeRequest{}
+		if v, ok := terraformRequest["q"].(string); ok && len(v) != 0 {
+			datadogChangeRequest.SetMetricQuery(v)
+		} else if v, ok := terraformRequest["apm_query"].([]interface{}); ok && len(v) > 0 {
+			apmQuery := v[0].(map[string]interface{})
+			datadogChangeRequest.ApmQuery = buildDatadogApmOrLogQuery(apmQuery)
+		} else if v, ok := terraformRequest["log_query"].([]interface{}); ok && len(v) > 0 {
+			logQuery := v[0].(map[string]interface{})
+			datadogChangeRequest.LogQuery = buildDatadogApmOrLogQuery(logQuery)
+		} else if v, ok := terraformRequest["process_query"].([]interface{}); ok && len(v) > 0 {
+			processQuery := v[0].(map[string]interface{})
+			datadogChangeRequest.ProcessQuery = buildDatadogProcessQuery(processQuery)
+		}
+
+		if v, ok := terraformRequest["change_type"].(string); ok && len(v) != 0 {
+			datadogChangeRequest.SetChangeType(v)
+		}
+		if v, ok := terraformRequest["compare_to"].(string); ok && len(v) != 0 {
+			datadogChangeRequest.SetCompareTo(v)
+		}
+		if v, ok := terraformRequest["increase_good"].(bool); ok {
+			datadogChangeRequest.SetIncreaseGood(v)
+		}
+		if v, ok := terraformRequest["order_by"].(string); ok && len(v) != 0 {
+			datadogChangeRequest.SetOrderBy(v)
+		}
+		if v, ok := terraformRequest["order_dir"].(string); ok && len(v) != 0 {
+			datadogChangeRequest.SetOrderDir(v)
+		}
+		if v, ok := terraformRequest["show_present"].(bool); ok {
+			datadogChangeRequest.SetShowPresent(v)
+		}
+
+		datadogRequests[i] = datadogChangeRequest
+	}
+	return &datadogRequests
+}
+func buildTerraformChangeRequests(datadogChangeRequests *[]datadog.ChangeRequest) *[]map[string]interface{} {
+	terraformRequests := make([]map[string]interface{}, len(*datadogChangeRequests))
+	for i, datadogRequest := range *datadogChangeRequests {
+		terraformRequest := map[string]interface{}{}
+		if datadogRequest.MetricQuery != nil {
+			terraformRequest["q"] = *datadogRequest.MetricQuery
+		} else if datadogRequest.ApmQuery != nil {
+			terraformQuery := buildTerraformApmOrLogQuery(*datadogRequest.ApmQuery)
+			terraformRequest["apm_query"] = []map[string]interface{}{terraformQuery}
+		} else if datadogRequest.LogQuery != nil {
+			terraformQuery := buildTerraformApmOrLogQuery(*datadogRequest.LogQuery)
+			terraformRequest["log_query"] = []map[string]interface{}{terraformQuery}
+		} else if datadogRequest.ProcessQuery != nil {
+			terraformQuery := buildTerraformProcessQuery(*datadogRequest.ProcessQuery)
+			terraformRequest["process_query"] = []map[string]interface{}{terraformQuery}
+		}
+
+		if datadogRequest.ChangeType != nil {
+			terraformRequest["change_type"] = *datadogRequest.ChangeType
+		}
+		if datadogRequest.CompareTo != nil {
+			terraformRequest["compare_to"] = *datadogRequest.CompareTo
+		}
+		if datadogRequest.IncreaseGood != nil {
+			terraformRequest["increase_good"] = *datadogRequest.IncreaseGood
+		}
+		if datadogRequest.OrderBy != nil {
+			terraformRequest["order_by"] = *datadogRequest.OrderBy
+		}
+		if datadogRequest.OrderDir != nil {
+			terraformRequest["order_dir"] = *datadogRequest.OrderDir
+		}
+		if datadogRequest.ShowPresent != nil {
+			terraformRequest["show_present"] = *datadogRequest.ShowPresent
+		}
+		terraformRequests[i] = terraformRequest
+	}
+	return &terraformRequests
 }
 
 //
