@@ -347,15 +347,6 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getChangeDefinitionSchema(),
 			},
 		},
-		"distribution_definition": {
-			Type:        schema.TypeList,
-			Optional:    true,
-			MaxItems:    1,
-			Description: "The definition for a Distribution widget",
-			Elem: &schema.Resource{
-				Schema: getDistributionDefinitionSchema(),
-			},
-		},
 		"check_status_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -365,13 +356,31 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getCheckStatusDefinitionSchema(),
 			},
 		},
+		"distribution_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Distribution widget",
+			Elem: &schema.Resource{
+				Schema: getDistributionDefinitionSchema(),
+			},
+		},
 		"event_stream_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
 			MaxItems:    1,
-			Description: "The definition for a Check Status widget",
+			Description: "The definition for a Event Stream widget",
 			Elem: &schema.Resource{
 				Schema: getEventStreamDefinitionSchema(),
+			},
+		},
+		"event_timeline_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Event Timeline widget",
+			Elem: &schema.Resource{
+				Schema: getEventTimelineDefinitionSchema(),
 			},
 		},
 		"free_text_definition": {
@@ -486,17 +495,21 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 		if changeDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogChangeDefinition(changeDefinition)
 		}
-	} else if _def, ok := terraformWidget["distribution_definition"].([]interface{}); ok && len(_def) > 0 {
-		if distributionDefinition, ok := _def[0].(map[string]interface{}); ok {
-			datadogWidget.Definition = buildDatadogDistributionDefinition(distributionDefinition)
-		}
 	} else if _def, ok := terraformWidget["check_status_definition"].([]interface{}); ok && len(_def) > 0 {
 		if checkStatusDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogCheckStatusDefinition(checkStatusDefinition)
 		}
+	} else if _def, ok := terraformWidget["distribution_definition"].([]interface{}); ok && len(_def) > 0 {
+		if distributionDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogDistributionDefinition(distributionDefinition)
+		}
 	} else if _def, ok := terraformWidget["event_stream_definition"].([]interface{}); ok && len(_def) > 0 {
 		if eventStreamDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogEventStreamDefinition(eventStreamDefinition)
+		}
+	} else if _def, ok := terraformWidget["event_timeline_definition"].([]interface{}); ok && len(_def) > 0 {
+		if eventTimelineDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogEventTimelineDefinition(eventTimelineDefinition)
 		}
 	} else if _def, ok := terraformWidget["free_text_definition"].([]interface{}); ok && len(_def) > 0 {
 		if freeTextDefinition, ok := _def[0].(map[string]interface{}); ok {
@@ -581,18 +594,22 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.ChangeDefinition)
 		terraformDefinition := buildTerraformChangeDefinition(datadogDefinition)
 		terraformWidget["change_definition"] = []map[string]interface{}{terraformDefinition}
-	case datadog.DISTRIBUTION_WIDGET:
-		datadogDefinition := datadogWidget.Definition.(datadog.DistributionDefinition)
-		terraformDefinition := buildTerraformDistributionDefinition(datadogDefinition)
-		terraformWidget["distribution_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.CHECK_STATUS_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.CheckStatusDefinition)
 		terraformDefinition := buildTerraformCheckStatusDefinition(datadogDefinition)
 		terraformWidget["check_status_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.DISTRIBUTION_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.DistributionDefinition)
+		terraformDefinition := buildTerraformDistributionDefinition(datadogDefinition)
+		terraformWidget["distribution_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.EVENT_STREAM_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.EventStreamDefinition)
 		terraformDefinition := buildTerraformEventStreamDefinition(datadogDefinition)
 		terraformWidget["event_stream_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.EVENT_TIMELINE_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.EventTimelineDefinition)
+		terraformDefinition := buildTerraformEventTimelineDefinition(datadogDefinition)
+		terraformWidget["event_timeline_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.FREE_TEXT_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.FreeTextDefinition)
 		terraformDefinition := buildTerraformFreeTextDefinition(datadogDefinition)
@@ -1411,6 +1428,79 @@ func buildTerraformEventStreamDefinition(datadogDefinition datadog.EventStreamDe
 	if datadogDefinition.EventSize != nil {
 		terraformDefinition["event_size"] = *datadogDefinition.EventSize
 	}
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	if datadogDefinition.Time != nil {
+		terraformDefinition["time"] = buildTerraformWidgetTime(*datadogDefinition.Time)
+	}
+	return terraformDefinition
+}
+
+//
+// Event Timeline Widget Definition helpers
+//
+
+func getEventTimelineDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"query": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"time": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getWidgetTimeSchema(),
+			},
+		},
+	}
+}
+
+func buildDatadogEventTimelineDefinition(terraformDefinition map[string]interface{}) *datadog.EventTimelineDefinition {
+	datadogDefinition := &datadog.EventTimelineDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.EVENT_TIMELINE_WIDGET)
+	datadogDefinition.Query = datadog.String(terraformDefinition["query"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitle(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleSize(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleAlign(v)
+	}
+	if v, ok := terraformDefinition["time"].(map[string]interface{}); ok && len(v) > 0 {
+		datadogDefinition.SetTime(*buildDatadogWidgetTime(v))
+	}
+	return datadogDefinition
+}
+
+func buildTerraformEventTimelineDefinition(datadogDefinition datadog.EventTimelineDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["query"] = *datadogDefinition.Query
+	// Optional params
 	if datadogDefinition.Title != nil {
 		terraformDefinition["title"] = *datadogDefinition.Title
 	}
