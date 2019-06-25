@@ -401,6 +401,15 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getHeatmapDefinitionSchema(),
 			},
 		},
+		"hostmap_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Hostmap widget",
+			Elem: &schema.Resource{
+				Schema: getHostmapDefinitionSchema(),
+			},
+		},
 		"iframe_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -546,6 +555,10 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 		if heatmapDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogHeatmapDefinition(heatmapDefinition)
 		}
+	} else if _def, ok := terraformWidget["hostmap_definition"].([]interface{}); ok && len(_def) > 0 {
+		if hostDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogHostmapDefinition(hostDefinition)
+		}
 	} else if _def, ok := terraformWidget["iframe_definition"].([]interface{}); ok && len(_def) > 0 {
 		if iframeDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogIframeDefinition(iframeDefinition)
@@ -657,6 +670,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.HeatmapDefinition)
 		terraformDefinition := buildTerraformHeatmapDefinition(datadogDefinition)
 		terraformWidget["heatmap_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.HOSTMAP_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.HostmapDefinition)
+		terraformDefinition := buildTerraformHostmapDefinition(datadogDefinition)
+		terraformWidget["hostmap_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.IFRAME_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.IframeDefinition)
 		terraformDefinition := buildTerraformIframeDefinition(datadogDefinition)
@@ -1802,6 +1819,219 @@ func buildTerraformHeatmapRequests(datadogHeatmapRequests *[]datadog.HeatmapRequ
 		terraformRequests[i] = terraformRequest
 	}
 	return &terraformRequests
+}
+
+//
+// Hostmap Widget Definition helpers
+//
+
+func getHostmapDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"request": {
+			Type:     schema.TypeList,
+			Optional: true,
+			MaxItems: 1,
+			MinItems: 1,
+			Elem: &schema.Resource{
+				Schema: map[string]*schema.Schema{
+					"fill": {
+						Type:     schema.TypeList,
+						Optional: true,
+						Elem: &schema.Resource{
+							Schema: getHostmapRequestSchema(),
+						},
+					},
+					"size": {
+						Type:     schema.TypeList,
+						Optional: true,
+						Elem: &schema.Resource{
+							Schema: getHostmapRequestSchema(),
+						},
+					},
+				},
+			},
+		},
+		"node_type": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"no_metric_hosts": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"no_group_hosts": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"group": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+		},
+		"scope": {
+			Type:     schema.TypeList,
+			Optional: true,
+			Elem:     &schema.Schema{Type: schema.TypeString},
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+	}
+}
+func buildDatadogHostmapDefinition(terraformDefinition map[string]interface{}) *datadog.HostmapDefinition {
+
+	// Required params
+	datadogDefinition := &datadog.HostmapDefinition{}
+	datadogDefinition.SetType(datadog.HOSTMAP_WIDGET)
+	if v, ok := terraformDefinition["request"].([]interface{}); ok && len(v) > 0 {
+		terraformRequests := v[0].(map[string]interface{})
+		datadogRequests := datadog.HostmapRequests{}
+		if terraformFillArray, ok := terraformRequests["fill"].([]interface{}); ok && len(terraformFillArray) > 0 {
+			terraformFill := terraformFillArray[0].(map[string]interface{})
+			datadogRequests.Fill = buildDatadogHostmapRequest(terraformFill)
+		}
+		if terraformSizeArray, ok := terraformRequests["size"].([]interface{}); ok && len(terraformSizeArray) > 0 {
+			terraformSize := terraformSizeArray[0].(map[string]interface{})
+			datadogRequests.Size = buildDatadogHostmapRequest(terraformSize)
+		}
+		datadogDefinition.SetRequests(datadogRequests)
+	}
+
+	// Optional params
+	if v, ok := terraformDefinition["node_type"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetNodeType(v)
+	}
+	if v, ok := terraformDefinition["no_metric_hosts"].(bool); ok {
+		datadogDefinition.SetNoMetricHosts(v)
+	}
+	if v, ok := terraformDefinition["no_group_hosts"].(bool); ok {
+		datadogDefinition.SetNoGroupHosts(v)
+	}
+	if terraformGroups, ok := terraformDefinition["group"].([]interface{}); ok && len(terraformGroups) > 0 {
+		datadogGroups := make([]string, len(terraformGroups))
+		for i, group := range terraformGroups {
+			datadogGroups[i] = group.(string)
+		}
+		datadogDefinition.Group = datadogGroups
+	}
+	if terraformScopes, ok := terraformDefinition["scope"].([]interface{}); ok && len(terraformScopes) > 0 {
+		datadogScopes := make([]string, len(terraformScopes))
+		for i, Scope := range terraformScopes {
+			datadogScopes[i] = Scope.(string)
+		}
+		datadogDefinition.Scope = datadogScopes
+	}
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitle(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleSize(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleAlign(v)
+	}
+	return datadogDefinition
+}
+func buildTerraformHostmapDefinition(datadogDefinition datadog.HostmapDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformRequests := map[string]interface{}{}
+	if datadogDefinition.Requests.Size != nil {
+		terraformSize := buildTerraformHostmapRequest(datadogDefinition.Requests.Size)
+		terraformRequests["size"] = []map[string]interface{}{*terraformSize}
+	}
+	if datadogDefinition.Requests.Fill != nil {
+		terraformFill := buildTerraformHostmapRequest(datadogDefinition.Requests.Fill)
+		terraformRequests["fill"] = []map[string]interface{}{*terraformFill}
+	}
+	terraformDefinition["request"] = []map[string]interface{}{terraformRequests}
+	// Optional params
+	if datadogDefinition.NodeType != nil {
+		terraformDefinition["node_type"] = *datadogDefinition.NodeType
+	}
+	if datadogDefinition.NoMetricHosts != nil {
+		terraformDefinition["no_metric_hosts"] = *datadogDefinition.NoMetricHosts
+	}
+	if datadogDefinition.NoGroupHosts != nil {
+		terraformDefinition["no_group_hosts"] = *datadogDefinition.NoGroupHosts
+	}
+	if datadogDefinition.Group != nil {
+		terraformGroups := make([]string, len(datadogDefinition.Group))
+		for i, datadogGroup := range datadogDefinition.Group {
+			terraformGroups[i] = datadogGroup
+		}
+		terraformDefinition["group"] = terraformGroups
+	}
+	if datadogDefinition.Scope != nil {
+		terraformScopes := make([]string, len(datadogDefinition.Scope))
+		for i, datadogScope := range datadogDefinition.Scope {
+			terraformScopes[i] = datadogScope
+		}
+		terraformDefinition["scope"] = terraformScopes
+	}
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	return terraformDefinition
+}
+
+func getHostmapRequestSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		// A request should implement at least one of the following type of query
+		"q":             getMetricQuerySchema(),
+		"apm_query":     getApmOrLogQuerySchema(),
+		"log_query":     getApmOrLogQuerySchema(),
+		"process_query": getProcessQuerySchema(),
+	}
+}
+func buildDatadogHostmapRequest(terraformRequest map[string]interface{}) *datadog.HostmapRequest {
+
+	datadogHostmapRequest := &datadog.HostmapRequest{}
+	if v, ok := terraformRequest["q"].(string); ok && len(v) != 0 {
+		datadogHostmapRequest.SetMetricQuery(v)
+	} else if v, ok := terraformRequest["apm_query"].([]interface{}); ok && len(v) > 0 {
+		apmQuery := v[0].(map[string]interface{})
+		datadogHostmapRequest.ApmQuery = buildDatadogApmOrLogQuery(apmQuery)
+	} else if v, ok := terraformRequest["log_query"].([]interface{}); ok && len(v) > 0 {
+		logQuery := v[0].(map[string]interface{})
+		datadogHostmapRequest.LogQuery = buildDatadogApmOrLogQuery(logQuery)
+	} else if v, ok := terraformRequest["process_query"].([]interface{}); ok && len(v) > 0 {
+		processQuery := v[0].(map[string]interface{})
+		datadogHostmapRequest.ProcessQuery = buildDatadogProcessQuery(processQuery)
+	}
+
+	return datadogHostmapRequest
+}
+func buildTerraformHostmapRequest(datadogHostmapRequest *datadog.HostmapRequest) *map[string]interface{} {
+	terraformRequest := map[string]interface{}{}
+	if datadogHostmapRequest.MetricQuery != nil {
+		terraformRequest["q"] = *datadogHostmapRequest.MetricQuery
+	} else if datadogHostmapRequest.ApmQuery != nil {
+		terraformQuery := buildTerraformApmOrLogQuery(*datadogHostmapRequest.ApmQuery)
+		terraformRequest["apm_query"] = []map[string]interface{}{terraformQuery}
+	} else if datadogHostmapRequest.LogQuery != nil {
+		terraformQuery := buildTerraformApmOrLogQuery(*datadogHostmapRequest.LogQuery)
+		terraformRequest["log_query"] = []map[string]interface{}{terraformQuery}
+	} else if datadogHostmapRequest.ProcessQuery != nil {
+		terraformQuery := buildTerraformProcessQuery(*datadogHostmapRequest.ProcessQuery)
+		terraformRequest["process_query"] = []map[string]interface{}{terraformQuery}
+	}
+	return &terraformRequest
 }
 
 //
