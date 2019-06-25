@@ -117,6 +117,26 @@ func TestAccDatadogDashboard_update(t *testing.T) {
 	})
 }
 
+func TestAccDatadogDashboard_import(t *testing.T) {
+	resourceName := "datadog_dashboard.ordered_dashboard"
+
+	resource.Test(t, resource.TestCase{
+		PreCheck:     func() { testAccPreCheck(t) },
+		Providers:    testAccProviders,
+		CheckDestroy: checkDashboardDestroy,
+		Steps: []resource.TestStep{
+			{
+				Config: datadogDashboardConfig,
+			},
+			{
+				ResourceName:      resourceName,
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
+		},
+	})
+}
+
 func checkDashboardExists(s *terraform.State) error {
 	client := testAccProvider.Meta().(*datadog.Client)
 	for _, r := range s.RootModule().Resources {

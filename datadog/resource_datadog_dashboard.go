@@ -391,6 +391,7 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 			Elem: &schema.Resource{
 				Schema: getHeatmapDefinitionSchema(),
 			},
+			ConflictsWith: []string{"widget.note_definition"},
 		},
 		"hostmap_definition": {
 			Type:        schema.TypeList,
@@ -451,7 +452,7 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 			Type:        schema.TypeList,
 			Optional:    true,
 			MaxItems:    1,
-			Description: "The definition for a Toplist widget",
+			Description: "The definition for a Query Value widget",
 			Elem: &schema.Resource{
 				Schema: getQueryValueDefinitionSchema(),
 			},
