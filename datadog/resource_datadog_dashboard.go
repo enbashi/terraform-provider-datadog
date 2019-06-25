@@ -428,6 +428,15 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getLogStreamDefinitionSchema(),
 			},
 		},
+		"manage_status_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for an Manage Status widget",
+			Elem: &schema.Resource{
+				Schema: getManageStatusDefinitionSchema(),
+			},
+		},
 		"timeseries_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -540,6 +549,10 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 		if logStreamDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogLogStreamDefinition(logStreamDefinition)
 		}
+	} else if _def, ok := terraformWidget["manage_status_definition"].([]interface{}); ok && len(_def) > 0 {
+		if manageStatusDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogManageStatusDefinition(manageStatusDefinition)
+		}
 	} else if _def, ok := terraformWidget["timeseries_definition"].([]interface{}); ok && len(_def) > 0 {
 		if timeseriesDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogTimeseriesDefinition(timeseriesDefinition)
@@ -643,6 +656,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.LogStreamDefinition)
 		terraformDefinition := buildTerraformLogStreamDefinition(datadogDefinition)
 		terraformWidget["log_stream_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.MANAGE_STATUS_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.ManageStatusDefinition)
+		terraformDefinition := buildTerraformManageStatusDefinition(datadogDefinition)
+		terraformWidget["manage_status_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.TIMESERIES_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.TimeseriesDefinition)
 		terraformDefinition := buildTerraformTimeseriesDefinition(datadogDefinition)
@@ -797,96 +814,6 @@ func buildTerraformGroupDefinition(datadogGroupDefinition datadog.GroupDefinitio
 	}
 
 	return terraformGroupDefinition
-}
-
-//
-// Note Widget Definition helpers
-//
-
-func getNoteDefinitionSchema() map[string]*schema.Schema {
-	return map[string]*schema.Schema{
-		"content": {
-			Type:     schema.TypeString,
-			Required: true,
-		},
-		"background_color": {
-			Type:     schema.TypeString,
-			Optional: true,
-		},
-		"font_size": {
-			Type:     schema.TypeString,
-			Optional: true,
-		},
-		"text_align": {
-			Type:     schema.TypeString,
-			Optional: true,
-		},
-		"show_tick": {
-			Type:     schema.TypeBool,
-			Optional: true,
-		},
-		"tick_pos": {
-			Type:     schema.TypeString,
-			Optional: true,
-		},
-		"tick_edge": {
-			Type:     schema.TypeString,
-			Optional: true,
-		},
-	}
-}
-
-func buildDatadogNoteDefinition(terraformDefinition map[string]interface{}) *datadog.NoteDefinition {
-	datadogDefinition := &datadog.NoteDefinition{}
-	// Required params
-	datadogDefinition.Type = datadog.String(datadog.NOTE_WIDGET)
-	datadogDefinition.Content = datadog.String(terraformDefinition["content"].(string))
-	// Optional params
-	if v, ok := terraformDefinition["background_color"].(string); ok && len(v) != 0 {
-		datadogDefinition.BackgroundColor = datadog.String(v)
-	}
-	if v, ok := terraformDefinition["font_size"].(string); ok && len(v) != 0 {
-		datadogDefinition.FontSize = datadog.String(v)
-	}
-	if v, ok := terraformDefinition["text_align"].(string); ok && len(v) != 0 {
-		datadogDefinition.TextAlign = datadog.String(v)
-	}
-	if v, ok := terraformDefinition["show_tick"]; ok {
-		datadogDefinition.ShowTick = datadog.Bool(v.(bool))
-	}
-	if v, ok := terraformDefinition["tick_pos"].(string); ok && len(v) != 0 {
-		datadogDefinition.TickPos = datadog.String(v)
-	}
-	if v, ok := terraformDefinition["tick_edge"].(string); ok && len(v) != 0 {
-		datadogDefinition.TickEdge = datadog.String(v)
-	}
-	return datadogDefinition
-}
-
-func buildTerraformNoteDefinition(datadogDefinition datadog.NoteDefinition) map[string]interface{} {
-	terraformDefinition := map[string]interface{}{}
-	// Required params
-	terraformDefinition["content"] = *datadogDefinition.Content
-	// Optional params
-	if datadogDefinition.BackgroundColor != nil {
-		terraformDefinition["background_color"] = *datadogDefinition.BackgroundColor
-	}
-	if datadogDefinition.FontSize != nil {
-		terraformDefinition["font_size"] = *datadogDefinition.FontSize
-	}
-	if datadogDefinition.TextAlign != nil {
-		terraformDefinition["text_align"] = *datadogDefinition.TextAlign
-	}
-	if datadogDefinition.ShowTick != nil {
-		terraformDefinition["show_tick"] = *datadogDefinition.ShowTick
-	}
-	if datadogDefinition.TickPos != nil {
-		terraformDefinition["tick_pos"] = *datadogDefinition.TickPos
-	}
-	if datadogDefinition.TickEdge != nil {
-		terraformDefinition["tick_edge"] = *datadogDefinition.TickEdge
-	}
-	return terraformDefinition
 }
 
 //
@@ -2036,6 +1963,216 @@ func buildTerraformLogStreamDefinition(datadogDefinition datadog.LogStreamDefini
 	}
 	if datadogDefinition.Time != nil {
 		terraformDefinition["time"] = buildTerraformWidgetTime(*datadogDefinition.Time)
+	}
+	return terraformDefinition
+}
+
+//
+// Manage Status Widget Definition helpers
+//
+
+func getManageStatusDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"query": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"sort": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"count": {
+			Type:     schema.TypeInt,
+			Optional: true,
+		},
+		"start": {
+			Type:     schema.TypeInt,
+			Optional: true,
+		},
+		"display_format": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"color_preference": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"hide_zero_counts": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+	}
+}
+
+func buildDatadogManageStatusDefinition(terraformDefinition map[string]interface{}) *datadog.ManageStatusDefinition {
+	datadogDefinition := &datadog.ManageStatusDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.MANAGE_STATUS_WIDGET)
+	datadogDefinition.Query = datadog.String(terraformDefinition["query"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["sort"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetSort(v)
+	}
+	if v, ok := terraformDefinition["count"].(int); ok {
+		datadogDefinition.SetCount(v)
+	}
+	if v, ok := terraformDefinition["start"].(int); ok {
+		datadogDefinition.SetStart(v)
+	}
+	if v, ok := terraformDefinition["display_format"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetDisplayFormat(v)
+	}
+	if v, ok := terraformDefinition["color_preference"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetColorPreference(v)
+	}
+	if v, ok := terraformDefinition["hide_zero_counts"].(bool); ok {
+		datadogDefinition.SetHideZeroCounts(v)
+	}
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitle(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleSize(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleAlign(v)
+	}
+	return datadogDefinition
+}
+
+func buildTerraformManageStatusDefinition(datadogDefinition datadog.ManageStatusDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["query"] = *datadogDefinition.Query
+	// Optional params
+	if datadogDefinition.Sort != nil {
+		terraformDefinition["sort"] = *datadogDefinition.Sort
+	}
+	if datadogDefinition.Count != nil {
+		terraformDefinition["count"] = *datadogDefinition.Count
+	}
+	if datadogDefinition.Start != nil {
+		terraformDefinition["start"] = *datadogDefinition.Start
+	}
+	if datadogDefinition.DisplayFormat != nil {
+		terraformDefinition["display_format"] = *datadogDefinition.DisplayFormat
+	}
+	if datadogDefinition.ColorPreference != nil {
+		terraformDefinition["color_preference"] = *datadogDefinition.ColorPreference
+	}
+	if datadogDefinition.HideZeroCounts != nil {
+		terraformDefinition["hide_zero_counts"] = *datadogDefinition.HideZeroCounts
+	}
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	return terraformDefinition
+}
+
+//
+// Note Widget Definition helpers
+//
+
+func getNoteDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"content": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"background_color": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"font_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"text_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"show_tick": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"tick_pos": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"tick_edge": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+	}
+}
+
+func buildDatadogNoteDefinition(terraformDefinition map[string]interface{}) *datadog.NoteDefinition {
+	datadogDefinition := &datadog.NoteDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.NOTE_WIDGET)
+	datadogDefinition.Content = datadog.String(terraformDefinition["content"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["background_color"].(string); ok && len(v) != 0 {
+		datadogDefinition.BackgroundColor = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["font_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.FontSize = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["text_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.TextAlign = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["show_tick"]; ok {
+		datadogDefinition.ShowTick = datadog.Bool(v.(bool))
+	}
+	if v, ok := terraformDefinition["tick_pos"].(string); ok && len(v) != 0 {
+		datadogDefinition.TickPos = datadog.String(v)
+	}
+	if v, ok := terraformDefinition["tick_edge"].(string); ok && len(v) != 0 {
+		datadogDefinition.TickEdge = datadog.String(v)
+	}
+	return datadogDefinition
+}
+
+func buildTerraformNoteDefinition(datadogDefinition datadog.NoteDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["content"] = *datadogDefinition.Content
+	// Optional params
+	if datadogDefinition.BackgroundColor != nil {
+		terraformDefinition["background_color"] = *datadogDefinition.BackgroundColor
+	}
+	if datadogDefinition.FontSize != nil {
+		terraformDefinition["font_size"] = *datadogDefinition.FontSize
+	}
+	if datadogDefinition.TextAlign != nil {
+		terraformDefinition["text_align"] = *datadogDefinition.TextAlign
+	}
+	if datadogDefinition.ShowTick != nil {
+		terraformDefinition["show_tick"] = *datadogDefinition.ShowTick
+	}
+	if datadogDefinition.TickPos != nil {
+		terraformDefinition["tick_pos"] = *datadogDefinition.TickPos
+	}
+	if datadogDefinition.TickEdge != nil {
+		terraformDefinition["tick_edge"] = *datadogDefinition.TickEdge
 	}
 	return terraformDefinition
 }
