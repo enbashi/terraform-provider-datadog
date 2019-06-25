@@ -311,15 +311,6 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 		},
 		// A widget should implement exactly one of the following definitions
 		// TODO: add a dynamic ConflictsWith to each type to enforece ^
-		"note_definition": {
-			Type:        schema.TypeList,
-			Optional:    true,
-			MaxItems:    1,
-			Description: "The definition for a Note widget",
-			Elem: &schema.Resource{
-				Schema: getNoteDefinitionSchema(),
-			},
-		},
 		"alert_graph_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -446,6 +437,34 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getManageStatusDefinitionSchema(),
 			},
 		},
+
+		"note_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Note widget",
+			Elem: &schema.Resource{
+				Schema: getNoteDefinitionSchema(),
+			},
+		},
+		"query_value_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Toplist widget",
+			Elem: &schema.Resource{
+				Schema: getQueryValueDefinitionSchema(),
+			},
+		},
+		"scatterplot_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Scatterplot widget",
+			Elem: &schema.Resource{
+				Schema: getScatterplotDefinitionSchema(),
+			},
+		},
 		"timeseries_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -471,24 +490,6 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 			Description: "The definition for a Trace Service widget",
 			Elem: &schema.Resource{
 				Schema: getTraceServiceDefinitionSchema(),
-			},
-		},
-		"query_value_definition": {
-			Type:        schema.TypeList,
-			Optional:    true,
-			MaxItems:    1,
-			Description: "The definition for a Toplist widget",
-			Elem: &schema.Resource{
-				Schema: getQueryValueDefinitionSchema(),
-			},
-		},
-		"scatterplot_definition": {
-			Type:        schema.TypeList,
-			Optional:    true,
-			MaxItems:    1,
-			Description: "The definition for a Scatterplot widget",
-			Elem: &schema.Resource{
-				Schema: getScatterplotDefinitionSchema(),
 			},
 		},
 	}
@@ -523,10 +524,6 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 				return nil, err
 			}
 			datadogWidget.Definition = datadogDefinition
-		}
-	} else if _def, ok := terraformWidget["note_definition"].([]interface{}); ok && len(_def) > 0 {
-		if noteDefinition, ok := _def[0].(map[string]interface{}); ok {
-			datadogWidget.Definition = buildDatadogNoteDefinition(noteDefinition)
 		}
 	} else if _def, ok := terraformWidget["alert_graph_definition"].([]interface{}); ok && len(_def) > 0 {
 		if alertGraphDefinition, ok := _def[0].(map[string]interface{}); ok {
@@ -584,6 +581,18 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 		if manageStatusDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogManageStatusDefinition(manageStatusDefinition)
 		}
+	} else if _def, ok := terraformWidget["note_definition"].([]interface{}); ok && len(_def) > 0 {
+		if noteDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogNoteDefinition(noteDefinition)
+		}
+	} else if _def, ok := terraformWidget["query_value_definition"].([]interface{}); ok && len(_def) > 0 {
+		if queryValueDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogQueryValueDefinition(queryValueDefinition)
+		}
+	} else if _def, ok := terraformWidget["scatterplot_definition"].([]interface{}); ok && len(_def) > 0 {
+		if scatterplotDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogScatterplotDefinition(scatterplotDefinition)
+		}
 	} else if _def, ok := terraformWidget["timeseries_definition"].([]interface{}); ok && len(_def) > 0 {
 		if timeseriesDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogTimeseriesDefinition(timeseriesDefinition)
@@ -595,14 +604,6 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 	} else if _def, ok := terraformWidget["trace_service_definition"].([]interface{}); ok && len(_def) > 0 {
 		if traceServiceDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogTraceServiceDefinition(traceServiceDefinition)
-		}
-	} else if _def, ok := terraformWidget["query_value_definition"].([]interface{}); ok && len(_def) > 0 {
-		if queryValueDefinition, ok := _def[0].(map[string]interface{}); ok {
-			datadogWidget.Definition = buildDatadogQueryValueDefinition(queryValueDefinition)
-		}
-	} else if _def, ok := terraformWidget["scatterplot_definition"].([]interface{}); ok && len(_def) > 0 {
-		if scatterplotDefinition, ok := _def[0].(map[string]interface{}); ok {
-			datadogWidget.Definition = buildDatadogScatterplotDefinition(scatterplotDefinition)
 		}
 	} else {
 		return nil, fmt.Errorf("Failed to find valid definition in widget configuration")
@@ -643,10 +644,6 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.GroupDefinition)
 		terraformDefinition := buildTerraformGroupDefinition(datadogDefinition)
 		terraformWidget["group_definition"] = []map[string]interface{}{terraformDefinition}
-	case datadog.NOTE_WIDGET:
-		datadogDefinition := datadogWidget.Definition.(datadog.NoteDefinition)
-		terraformDefinition := buildTerraformNoteDefinition(datadogDefinition)
-		terraformWidget["note_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.ALERT_GRAPH_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.AlertGraphDefinition)
 		terraformDefinition := buildTerraformAlertGraphDefinition(datadogDefinition)
@@ -703,6 +700,18 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.ManageStatusDefinition)
 		terraformDefinition := buildTerraformManageStatusDefinition(datadogDefinition)
 		terraformWidget["manage_status_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.NOTE_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.NoteDefinition)
+		terraformDefinition := buildTerraformNoteDefinition(datadogDefinition)
+		terraformWidget["note_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.QUERY_VALUE_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.QueryValueDefinition)
+		terraformDefinition := buildTerraformQueryValueDefinition(datadogDefinition)
+		terraformWidget["query_value_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.SCATTERPLOT_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.ScatterplotDefinition)
+		terraformDefinition := buildTerraformScatterplotDefinition(datadogDefinition)
+		terraformWidget["scatterplot_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.TIMESERIES_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.TimeseriesDefinition)
 		terraformDefinition := buildTerraformTimeseriesDefinition(datadogDefinition)
@@ -715,14 +724,6 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.TraceServiceDefinition)
 		terraformDefinition := buildTerraformTraceServiceDefinition(datadogDefinition)
 		terraformWidget["trace_service_definition"] = []map[string]interface{}{terraformDefinition}
-	case datadog.QUERY_VALUE_WIDGET:
-		datadogDefinition := datadogWidget.Definition.(datadog.QueryValueDefinition)
-		terraformDefinition := buildTerraformQueryValueDefinition(datadogDefinition)
-		terraformWidget["query_value_definition"] = []map[string]interface{}{terraformDefinition}
-	case datadog.SCATTERPLOT_WIDGET:
-		datadogDefinition := datadogWidget.Definition.(datadog.ScatterplotDefinition)
-		terraformDefinition := buildTerraformScatterplotDefinition(datadogDefinition)
-		terraformWidget["scatterplot_definition"] = []map[string]interface{}{terraformDefinition}
 	default:
 		return nil, fmt.Errorf("Unsupported widget type: %s - %s", widgetType, datadog.TIMESERIES_WIDGET)
 	}

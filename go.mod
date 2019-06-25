@@ -2,6 +2,7 @@ module github.com/terraform-providers/terraform-provider-datadog
 
 require (
 	github.com/DHowett/go-plist v0.0.0-20180609054337-500bd5b9081b // indirect
+	github.com/MLaureB/go-datadog-api v2.19.0+incompatible
 	github.com/beevik/etree v0.0.0-20171015221209-af219c0c7ea1 // indirect
 	github.com/cenkalti/backoff v0.0.0-20161020194410-b02f2bbce11d // indirect
 	github.com/chzyer/logex v1.1.11-0.20160617073814-96a4d311aa9b // indirect
