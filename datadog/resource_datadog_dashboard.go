@@ -310,7 +310,6 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 			},
 		},
 		// A widget should implement exactly one of the following definitions
-		// TODO: add a dynamic ConflictsWith to each type to enforece ^
 		"alert_graph_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -391,7 +390,6 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 			Elem: &schema.Resource{
 				Schema: getHeatmapDefinitionSchema(),
 			},
-			ConflictsWith: []string{"widget.note_definition"},
 		},
 		"hostmap_definition": {
 			Type:        schema.TypeList,
