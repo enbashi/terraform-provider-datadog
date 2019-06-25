@@ -455,6 +455,15 @@ func getNonGroupWidgetSchema() map[string]*schema.Schema {
 				Schema: getToplistDefinitionSchema(),
 			},
 		},
+		"trace_service_definition": {
+			Type:        schema.TypeList,
+			Optional:    true,
+			MaxItems:    1,
+			Description: "The definition for a Trace Service widget",
+			Elem: &schema.Resource{
+				Schema: getTraceServiceDefinitionSchema(),
+			},
+		},
 		"query_value_definition": {
 			Type:        schema.TypeList,
 			Optional:    true,
@@ -560,6 +569,10 @@ func buildDatadogWidget(terraformWidget map[string]interface{}) (*datadog.BoardW
 	} else if _def, ok := terraformWidget["toplist_definition"].([]interface{}); ok && len(_def) > 0 {
 		if toplistDefinition, ok := _def[0].(map[string]interface{}); ok {
 			datadogWidget.Definition = buildDatadogToplistDefinition(toplistDefinition)
+		}
+	} else if _def, ok := terraformWidget["trace_service_definition"].([]interface{}); ok && len(_def) > 0 {
+		if traceServiceDefinition, ok := _def[0].(map[string]interface{}); ok {
+			datadogWidget.Definition = buildDatadogTraceServiceDefinition(traceServiceDefinition)
 		}
 	} else if _def, ok := terraformWidget["query_value_definition"].([]interface{}); ok && len(_def) > 0 {
 		if queryValueDefinition, ok := _def[0].(map[string]interface{}); ok {
@@ -668,6 +681,10 @@ func buildTerraformWidget(datadogWidget datadog.BoardWidget) (map[string]interfa
 		datadogDefinition := datadogWidget.Definition.(datadog.ToplistDefinition)
 		terraformDefinition := buildTerraformToplistDefinition(datadogDefinition)
 		terraformWidget["toplist_definition"] = []map[string]interface{}{terraformDefinition}
+	case datadog.TRACE_SERVICE_WIDGET:
+		datadogDefinition := datadogWidget.Definition.(datadog.TraceServiceDefinition)
+		terraformDefinition := buildTerraformTraceServiceDefinition(datadogDefinition)
+		terraformWidget["trace_service_definition"] = []map[string]interface{}{terraformDefinition}
 	case datadog.QUERY_VALUE_WIDGET:
 		datadogDefinition := datadogWidget.Definition.(datadog.QueryValueDefinition)
 		terraformDefinition := buildTerraformQueryValueDefinition(datadogDefinition)
@@ -2885,6 +2902,171 @@ func buildTerraformToplistRequests(datadogToplistRequests *[]datadog.ToplistRequ
 		terraformRequests[i] = terraformRequest
 	}
 	return &terraformRequests
+}
+
+//
+// Trace Service Widget Definition helpers
+//
+
+func getTraceServiceDefinitionSchema() map[string]*schema.Schema {
+	return map[string]*schema.Schema{
+		"env": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"service": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"span_name": {
+			Type:     schema.TypeString,
+			Required: true,
+		},
+		"show_hits": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"show_errors": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"show_latency": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"show_breakdown": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"show_distribution": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"show_resource_list": {
+			Type:     schema.TypeBool,
+			Optional: true,
+		},
+		"size_format": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"display_format": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_size": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"title_align": {
+			Type:     schema.TypeString,
+			Optional: true,
+		},
+		"time": {
+			Type:     schema.TypeMap,
+			Optional: true,
+			Elem: &schema.Resource{
+				Schema: getWidgetTimeSchema(),
+			},
+		},
+	}
+}
+
+func buildDatadogTraceServiceDefinition(terraformDefinition map[string]interface{}) *datadog.TraceServiceDefinition {
+	datadogDefinition := &datadog.TraceServiceDefinition{}
+	// Required params
+	datadogDefinition.Type = datadog.String(datadog.TRACE_SERVICE_WIDGET)
+	datadogDefinition.Env = datadog.String(terraformDefinition["env"].(string))
+	datadogDefinition.Service = datadog.String(terraformDefinition["service"].(string))
+	datadogDefinition.SpanName = datadog.String(terraformDefinition["span_name"].(string))
+	// Optional params
+	if v, ok := terraformDefinition["show_hits"].(bool); ok {
+		datadogDefinition.SetShowHits(v)
+	}
+	if v, ok := terraformDefinition["show_errors"].(bool); ok {
+		datadogDefinition.SetShowErrors(v)
+	}
+	if v, ok := terraformDefinition["show_latency"].(bool); ok {
+		datadogDefinition.SetShowLatency(v)
+	}
+	if v, ok := terraformDefinition["show_breakdown"].(bool); ok {
+		datadogDefinition.SetShowBreakdown(v)
+	}
+	if v, ok := terraformDefinition["show_distribution"].(bool); ok {
+		datadogDefinition.SetShowDistribution(v)
+	}
+	if v, ok := terraformDefinition["show_resource_list"].(bool); ok {
+		datadogDefinition.SetShowResourceList(v)
+	}
+	if v, ok := terraformDefinition["size_format"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetSizeFormat(v)
+	}
+	if v, ok := terraformDefinition["display_format"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetDisplayFormat(v)
+	}
+	if v, ok := terraformDefinition["title"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitle(v)
+	}
+	if v, ok := terraformDefinition["title_size"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleSize(v)
+	}
+	if v, ok := terraformDefinition["title_align"].(string); ok && len(v) != 0 {
+		datadogDefinition.SetTitleAlign(v)
+	}
+	if v, ok := terraformDefinition["time"].(map[string]interface{}); ok && len(v) > 0 {
+		datadogDefinition.SetTime(*buildDatadogWidgetTime(v))
+	}
+	return datadogDefinition
+}
+
+func buildTerraformTraceServiceDefinition(datadogDefinition datadog.TraceServiceDefinition) map[string]interface{} {
+	terraformDefinition := map[string]interface{}{}
+	// Required params
+	terraformDefinition["env"] = *datadogDefinition.Env
+	terraformDefinition["service"] = *datadogDefinition.Service
+	terraformDefinition["span_name"] = *datadogDefinition.SpanName
+	// Optional params
+	if datadogDefinition.ShowHits != nil {
+		terraformDefinition["show_hits"] = *datadogDefinition.ShowHits
+	}
+	if datadogDefinition.ShowErrors != nil {
+		terraformDefinition["show_errors"] = *datadogDefinition.ShowErrors
+	}
+	if datadogDefinition.ShowLatency != nil {
+		terraformDefinition["show_latency"] = *datadogDefinition.ShowLatency
+	}
+	if datadogDefinition.ShowBreakdown != nil {
+		terraformDefinition["show_breakdown"] = *datadogDefinition.ShowBreakdown
+	}
+	if datadogDefinition.ShowDistribution != nil {
+		terraformDefinition["show_distribution"] = *datadogDefinition.ShowDistribution
+	}
+	if datadogDefinition.ShowResourceList != nil {
+		terraformDefinition["show_resource_list"] = *datadogDefinition.ShowResourceList
+	}
+	if datadogDefinition.SizeFormat != nil {
+		terraformDefinition["size_format"] = *datadogDefinition.SizeFormat
+	}
+	if datadogDefinition.DisplayFormat != nil {
+		terraformDefinition["display_format"] = *datadogDefinition.DisplayFormat
+	}
+	if datadogDefinition.Title != nil {
+		terraformDefinition["title"] = *datadogDefinition.Title
+	}
+	if datadogDefinition.TitleSize != nil {
+		terraformDefinition["title_size"] = *datadogDefinition.TitleSize
+	}
+	if datadogDefinition.TitleAlign != nil {
+		terraformDefinition["title_align"] = *datadogDefinition.TitleAlign
+	}
+	if datadogDefinition.Time != nil {
+		terraformDefinition["time"] = buildTerraformWidgetTime(*datadogDefinition.Time)
+	}
+	return terraformDefinition
 }
 
 // Widget Conditional Format helpers
