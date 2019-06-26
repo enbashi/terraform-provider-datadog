@@ -2,6 +2,7 @@ package datadog
 
 import (
 	"fmt"
+
 	"strconv"
 	"strings"
 
@@ -3630,13 +3631,13 @@ func buildDatadogApmOrLogQuery(terraformQuery map[string]interface{}) *datadog.W
 				datadogGroupBy.Limit = &v
 			}
 			// Sort
-			if sort, ok := groupBy["sort"].(map[string]string); ok && len(sort) > 0 {
+			if sort, ok := groupBy["sort"].(map[string]interface{}); ok && len(sort) > 0 {
 				datadogGroupBy.Sort = &datadog.ApmOrLogQueryGroupBySort{
-					Aggregation: datadog.String(sort["aggregation"]),
-					Order:       datadog.String(sort["order"]),
+					Aggregation: datadog.String(sort["aggregation"].(string)),
+					Order:       datadog.String(sort["order"].(string)),
 				}
-				if len(sort["facet"]) > 0 {
-					datadogGroupBy.Sort.Facet = datadog.String(sort["facet"])
+				if len(sort["facet"].(string)) > 0 {
+					datadogGroupBy.Sort.Facet = datadog.String(sort["facet"].(string))
 				}
 			}
 			datadogGroupBys[i] = datadogGroupBy
@@ -3689,6 +3690,7 @@ func buildTerraformApmOrLogQuery(datadogQuery datadog.WidgetApmOrLogQuery) map[s
 				}
 				terraformGroupBy["sort"] = sort
 			}
+
 			terraformGroupBys[i] = terraformGroupBy
 		}
 		terraformQuery["group_by"] = &terraformGroupBys
@@ -3811,8 +3813,9 @@ func buildDatadogWidgetAxis(terraformWidgetAxis map[string]interface{}) *datadog
 	if v, ok := terraformWidgetAxis["max"].(string); ok && len(v) != 0 {
 		datadogWidgetAxis.SetMax(v)
 	}
-	if v, ok := terraformWidgetAxis["include_zero"].(bool); ok {
-		datadogWidgetAxis.SetIncludeZero(v)
+
+	if v, ok := terraformWidgetAxis["include_zero"].(string); ok {
+		datadogWidgetAxis.SetIncludeZero(convertStringToBool(v))
 	}
 	return datadogWidgetAxis
 }
@@ -3830,8 +3833,24 @@ func buildTerraformWidgetAxis(datadogWidgetAxis datadog.WidgetAxis) map[string]i
 	if datadogWidgetAxis.Max != nil {
 		terraformWidgetAxis["max"] = *datadogWidgetAxis.Max
 	}
+
 	if datadogWidgetAxis.IncludeZero != nil {
-		terraformWidgetAxis["include_zero"] = *datadogWidgetAxis.IncludeZero
+		terraformWidgetAxis["include_zero"] = convertBoolToString(*datadogWidgetAxis.IncludeZero)
 	}
 	return terraformWidgetAxis
+}
+
+func convertBoolToString(i bool) string {
+	if i {
+		return "true"
+	}
+	return "false"
+}
+func convertStringToBool(i string) bool {
+	switch i {
+	case "true", "1", "t", "True":
+		return true
+	default:
+		return false
+	}
 }
