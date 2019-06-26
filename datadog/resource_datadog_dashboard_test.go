@@ -339,6 +339,156 @@ resource "datadog_dashboard" "ordered_dashboard" {
 		default = "autoscaling"
 	}
 }
+
+resource "datadog_dashboard" "free_dashboard" {
+	title         = "Acceptance Test Free Dashboard"
+	description   = "Created using the Datadog provider in Terraform"
+	layout_type   = "free"
+	is_read_only  = false
+  	widget {
+		event_stream_definition {
+			query = "*"
+			event_size = "l"
+			title = "Widget Title"
+			title_size = 16
+			title_align = "left"
+			time = {
+				live_span = "1h"
+			}
+		}
+		layout = {
+			height = 43
+			width = 32
+			x = 5
+			y = 5
+		}
+  	}
+widget {
+    event_timeline_definition {
+		query = "*"
+		title = "Widget Title"
+		title_size = 16
+		title_align = "left"
+		time = {
+			live_span = "1h"
+		}
+    }
+    layout = {
+		height = 9
+		width = 65
+		x = 42
+		y = 73
+    }
+}
+widget {
+    free_text_definition {
+		text = "free text content"
+		color = "#d00"
+		font_size = "88"
+		text_align = "left"
+    }
+    layout = {
+		height = 20
+		width = 30
+		x = 42
+		y = 5
+    }
+}
+widget {
+    iframe_definition {
+        url = "http://google.com"
+    }
+    layout = {
+		height = 46
+		width = 39
+		x = 111
+		y = 8
+    }
+}
+widget {
+    image_definition {
+		url = "https://images.pexels.com/photos/67636/rose-blue-flower-rose-blooms-67636.jpeg?auto=compress&cs=tinysrgb&h=350"
+		sizing = "fit"
+		margin = "small"
+    }
+    layout = {
+		height = 20
+		width = 30
+		x = 77
+		y = 7
+    }
+}
+widget {
+    log_stream_definition {
+		logset = "19"
+		query = "error"
+		columns = ["core_host", "core_service", "tag_source"]
+    }
+    layout = {
+		height = 36
+		width = 32
+		x = 5
+		y = 51
+    }
+}
+widget {
+    manage_status_definition {
+		color_preference = "text"
+		count = 50
+		display_format = "countsAndList"
+		hide_zero_counts = true
+		query = "type:metric"
+		sort = "status,asc"
+		start = 0
+		title = "Widget Title"
+		title_size = 16
+		title_align = "left"
+    }
+    layout = {
+		height = 40
+		width = 30
+		x = 112
+		y = 55
+    }
+}
+widget {
+    trace_service_definition {
+		display_format = "three_column"
+		env = "datad0g.com"
+		service = "alerting-cassandra"
+		show_breakdown = true
+		show_distribution = true
+		show_errors = true
+		show_hits = true
+		show_latency = false
+		show_resource_list = false
+		size_format = "large"
+		span_name = "cassandra.query"
+		title = "alerting-cassandra #env:datad0g.com"
+		title_align = "center"
+		title_size = "13"
+		time = {
+			live_span = "1h"
+		}
+    }
+    layout = {
+		height = 38
+		width = 67
+		x = 40
+		y = 28
+    }
+}
+	template_variable {
+		name   = "var_1"
+		prefix = "host"
+		default = "aws"
+	}
+	template_variable {
+		name   = "var_2"
+		prefix = "service_name"
+		default = "autoscaling"
+	}
+}
 `
 
 func TestAccDatadogDashboard_update(t *testing.T) {
@@ -352,6 +502,8 @@ func TestAccDatadogDashboard_update(t *testing.T) {
 				Config: datadogDashboardConfig,
 				Check: resource.ComposeTestCheckFunc(
 					checkDashboardExists,
+					// Ordered layout dashboard
+
 					// Dashboard metadata
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "title", "Acceptance Test Ordered Dashboard"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "description", "Created using the Datadog provider in Terraform"),
@@ -531,7 +683,6 @@ func TestAccDatadogDashboard_update(t *testing.T) {
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.title_align", "left"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.title_size", "16"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.time.live_span", "1h"),
-
 					// Group widget
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.layout_type", "ordered"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.title", "Group Widget"),
@@ -555,6 +706,106 @@ func TestAccDatadogDashboard_update(t *testing.T) {
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "template_variable.1.prefix", "service_name"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "template_variable.1.default", "autoscaling"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "description", "Created using the Datadog provider in Terraform"),
+
+					// Free layout dashboard
+
+					// Dashboard metadata
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "title", "Acceptance Test Free Dashboard"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "description", "Created using the Datadog provider in Terraform"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "layout_type", "free"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "is_read_only", "false"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.#", "8"),
+
+					// Event Stream widget
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.event_stream_definition.0.query", "*"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.event_stream_definition.0.event_size", "l"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.event_stream_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.event_stream_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.event_stream_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.event_stream_definition.0.time.live_span", "1h"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.layout.height", "43"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.layout.width", "32"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.layout.x", "5"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.0.layout.y", "5"),
+					// Event Timeline widget
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.event_timeline_definition.0.query", "*"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.event_timeline_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.event_timeline_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.event_timeline_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.event_timeline_definition.0.time.live_span", "1h"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.layout.height", "9"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.layout.width", "65"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.layout.x", "42"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.1.layout.y", "73"),
+					// Free Text widget
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.2.free_text_definition.0.text", "free text content"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.2.free_text_definition.0.color", "#d00"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.2.free_text_definition.0.font_size", "88"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.2.free_text_definition.0.text_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.2.layout.height", "20"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.2.layout.width", "30"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.2.layout.x", "42"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.2.layout.y", "5"),
+					// Iframe widget
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.3.iframe_definition.0.url", "http://google.com"),
+					// Image widget
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.4.image_definition.0.url", "https://images.pexels.com/photos/67636/rose-blue-flower-rose-blooms-67636.jpeg?auto=compress&cs=tinysrgb&h=350"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.4.image_definition.0.sizing", "fit"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.4.image_definition.0.margin", "small"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.4.layout.height", "20"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.4.layout.width", "30"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.4.layout.x", "77"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.4.layout.y", "7"),
+					// Log Stream widget
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.log_stream_definition.0.logset", "19"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.log_stream_definition.0.query", "error"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.log_stream_definition.0.columns.#", "3"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.log_stream_definition.0.columns.0", "core_host"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.log_stream_definition.0.columns.1", "core_service"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.log_stream_definition.0.columns.2", "tag_source"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.layout.height", "36"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.layout.width", "32"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.layout.x", "5"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.5.layout.y", "51"),
+					// Manage Status widget
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.color_preference", "text"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.count", "50"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.display_format", "countsAndList"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.hide_zero_counts", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.query", "type:metric"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.sort", "status,asc"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.start", "0"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.manage_status_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.layout.height", "40"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.layout.width", "30"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.layout.x", "112"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.6.layout.y", "55"),
+					// Trace Service widget
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.display_format", "three_column"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.env", "datad0g.com"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.service", "alerting-cassandra"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.show_breakdown", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.show_distribution", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.show_errors", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.show_hits", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.show_latency", "false"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.show_resource_list", "false"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.size_format", "large"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.span_name", "cassandra.query"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.title", "alerting-cassandra #env:datad0g.com"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.title_align", "center"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.title_size", "13"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "widget.7.trace_service_definition.0.time.live_span", "1h"),
+					// Template Variables
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "template_variable.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "template_variable.0.default", "aws"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "template_variable.0.name", "var_1"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "template_variable.0.prefix", "host"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "template_variable.1.default", "autoscaling"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "template_variable.1.name", "var_2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.free_dashboard", "template_variable.1.prefix", "service_name"),
 				),
 			},
 		},
