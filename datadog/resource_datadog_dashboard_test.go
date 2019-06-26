@@ -17,9 +17,6 @@ resource "datadog_dashboard" "ordered_dashboard" {
   layout_type   = "ordered"
   is_read_only  = true
 
-
-
-
 	widget {
 		alert_graph_definition {
 			alert_id = "895605"
@@ -304,7 +301,6 @@ resource "datadog_dashboard" "ordered_dashboard" {
 			}
 		}
 	}
-
 	widget {
 		group_definition {
 			layout_type = "ordered"
@@ -313,10 +309,9 @@ resource "datadog_dashboard" "ordered_dashboard" {
 			widget {
 				note_definition {
 					content = "cluster note widget"
-      		background_color = "yellow"
+      				background_color = "yellow"
 				}
 			}
-
 			widget {
 				alert_graph_definition {
 					alert_id = "123"
@@ -362,25 +357,195 @@ func TestAccDatadogDashboard_update(t *testing.T) {
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "description", "Created using the Datadog provider in Terraform"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "layout_type", "ordered"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "is_read_only", "true"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.#", "13"),
 					// Alert Graph widget
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.0.alert_graph_definition.0.alert_id", "895605"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.0.alert_graph_definition.0.alert_id", "895605"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.0.alert_graph_definition.0.viz_type", "timeseries"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.0.alert_graph_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.0.alert_graph_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.0.alert_graph_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.0.alert_graph_definition.0.time.live_span", "1h"),
 					// Alert Value widget
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.alert_value_definition.0.alert_id", "895605"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.alert_value_definition.0.alert_id", "895605"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.alert_value_definition.0.precision", "3"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.alert_value_definition.0.unit", "b"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.alert_value_definition.0.text_align", "center"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.alert_value_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.alert_value_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.alert_value_definition.0.title_align", "left"),
+					// Change widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.request.0.q", "avg:system.load.1{env:staging} by {account}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.request.0.change_type", "absolute"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.request.0.compare_to", "week_before"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.request.0.increase_good", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.request.0.order_by", "name"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.request.0.order_dir", "desc"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.request.0.show_present", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.2.change_definition.0.time.live_span", "1h"),
+					// Distribution widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.3.distribution_definition.0.request.0.q", "avg:system.load.1{env:staging} by {account}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.3.distribution_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.3.distribution_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.3.distribution_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.3.distribution_definition.0.time.live_span", "1h"),
+					// Check Status widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.check", "aws.ecs.agent_connected"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.grouping", "cluster"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.group_by.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.group_by.0", "account"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.group_by.1", "cluster"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.tags.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.tags.0", "account:demo"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.tags.1", "cluster:awseb-ruthebdog-env-8-dn3m6u3gvk"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.4.check_status_definition.0.time.live_span", "1h"),
+					// Heatmap widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.request.0.q", "avg:system.load.1{env:staging} by {account}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.yaxis.min", "1"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.yaxis.max", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.yaxis.include_zero", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.yaxis.scale", "sqrt"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.5.heatmap_definition.0.time.live_span", "1h"),
+					// Hostmap widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.request.0.fill.0.q", "avg:system.load.1{*} by {host}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.request.0.size.0.q", "avg:memcache.uptime{*} by {host}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.node_type", "container"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.group.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.group.0", "host"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.group.1", "region"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.scope.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.scope.0", "region:us-east-1"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.scope.1", "aws_account:727006795293"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.6.hostmap_definition.0.title_align", "left"),
+					// Note widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.7.note_definition.0.content", "note text"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.7.note_definition.0.background_color", "pink"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.7.note_definition.0.font_size", "14"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.7.note_definition.0.text_align", "center"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.7.note_definition.0.show_tick", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.7.note_definition.0.tick_edge", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.7.note_definition.0.tick_pos", "50%"),
+					// Query valye widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.q", "avg:system.load.1{env:staging} by {account}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.aggregator", "sum"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.conditional_formats.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.conditional_formats.0.comparator", "<"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.conditional_formats.0.value", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.conditional_formats.0.palette", "white_on_green"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.conditional_formats.1.comparator", ">"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.conditional_formats.1.value", "2.2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.request.0.conditional_formats.1.palette", "white_on_red"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.autoscale", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.custom_unit", "xx"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.precision", "4"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.8.query_value_definition.0.time.live_span", "1h"),
+					// Scatterplot widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.request.0.x.0.q", "avg:system.cpu.user{*} by {service, account}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.request.0.x.0.aggregator", "max"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.request.0.y.0.q", "avg:system.mem.used{*} by {service, account}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.request.0.y.0.aggregator", "min"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.color_by_groups.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.color_by_groups.0", "account"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.color_by_groups.1", "apm-role-group"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.xaxis.include_zero", "true"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.xaxis.label", "x"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.xaxis.max", "2000"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.xaxis.min", "1"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.xaxis.scale", "pow"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.yaxis.include_zero", "false"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.yaxis.label", "y"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.yaxis.max", "2222"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.yaxis.min", "5"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.yaxis.scale", "log"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.9.scatterplot_definition.0.time.live_span", "1h"),
+					// Timeseries widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.0.q", "avg:system.cpu.user{app:general} by {env}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.0.display_type", "line"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.index", "mcnulty"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.compute.aggregation", "count"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.compute.facet", "@duration"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.compute.interval", "5000"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.search.query", "status:info"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.group_by.#", "1"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.group_by.0.facet", "host"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.group_by.0.limit", "10"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.group_by.0.sort.aggregation", "avg"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.group_by.0.sort.facet", "@duration"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.log_query.0.group_by.0.sort.order", "desc"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.1.display_type", "area"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.index", "apm-search"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.compute.aggregation", "count"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.compute.facet", "@duration"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.compute.interval", "5000"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.search.query", "type:web"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.group_by.#", "1"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.group_by.0.facet", "resource_name"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.group_by.0.limit", "50"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.group_by.0.sort.aggregation", "avg"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.group_by.0.sort.facet", "@string_query.interval"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.apm_query.0.group_by.0.sort.order", "desc"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.2.display_type", "bars"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.3.process_query.0.metric", "process.stat.cpu.total_pct"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.3.process_query.0.search_by", "error"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.3.process_query.0.filter_by.#", "1"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.3.process_query.0.filter_by.0", "active"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.3.process_query.0.limit", "50"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.request.3.display_type", "area"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.marker.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.marker.0.display_type", "error dashed"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.marker.0.label", " z=6 "),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.marker.0.value", "y = 4"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.marker.1.display_type", "ok solid"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.marker.1.label", " x=8 "),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.marker.1.value", "10 < y < 999"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.10.timeseries_definition.0.time.live_span", "1h"),
+					// Toplist widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.request.0.q", "avg:system.cpu.user{app:general} by {env}"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.request.0.conditional_formats.#", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.request.0.conditional_formats.0.comparator", "<"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.request.0.conditional_formats.0.value", "2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.request.0.conditional_formats.0.palette", "white_on_green"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.request.0.conditional_formats.1.comparator", ">"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.request.0.conditional_formats.1.value", "2.2"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.request.0.conditional_formats.1.palette", "white_on_red"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.title", "Widget Title"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.title_align", "left"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.11.toplist_definition.0.time.live_span", "1h"),
+
 					// Group widget
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.layout_type", "ordered"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.title", "Group Widget"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.#", "2"),
-					// // Inner Note widget
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.0.note_definition.0.content", "cluster note widget"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.0.note_definition.0.background_color", "yellow"),
-					// // Inner Alert Graph widget
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.1.alert_graph_definition.0.alert_id", "123"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.1.alert_graph_definition.0.viz_type", "toplist"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.1.alert_graph_definition.0.title", "Alert Graph"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.1.alert_graph_definition.0.title_size", "16"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.1.alert_graph_definition.0.title_align", "right"),
-					// resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.1.group_definition.0.widget.1.alert_graph_definition.0.time.live_span", "1h"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.layout_type", "ordered"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.title", "Group Widget"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.#", "2"),
+					// Inner Note widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.0.note_definition.0.content", "cluster note widget"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.0.note_definition.0.background_color", "yellow"),
+					// Inner Alert Graph widget
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.1.alert_graph_definition.0.alert_id", "123"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.1.alert_graph_definition.0.viz_type", "toplist"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.1.alert_graph_definition.0.title", "Alert Graph"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.1.alert_graph_definition.0.title_size", "16"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.1.alert_graph_definition.0.title_align", "right"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "widget.12.group_definition.0.widget.1.alert_graph_definition.0.time.live_span", "1h"),
 					// Template Variables
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "template_variable.#", "2"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "template_variable.0.name", "var_1"),
@@ -389,6 +554,7 @@ func TestAccDatadogDashboard_update(t *testing.T) {
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "template_variable.1.name", "var_2"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "template_variable.1.prefix", "service_name"),
 					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "template_variable.1.default", "autoscaling"),
+					resource.TestCheckResourceAttr("datadog_dashboard.ordered_dashboard", "description", "Created using the Datadog provider in Terraform"),
 				),
 			},
 		},
@@ -434,7 +600,7 @@ func checkDashboardDestroy(s *terraform.State) error {
 			}
 			return fmt.Errorf("Received an error retrieving dashboard2 %s", err)
 		}
-		return fmt.Errorf("Timeboard still exists")
+		return fmt.Errorf("Dashboard still exists")
 	}
 	return nil
 }
